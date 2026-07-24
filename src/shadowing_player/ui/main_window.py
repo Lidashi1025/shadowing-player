@@ -411,6 +411,7 @@ class MainWindow(QMainWindow):
         self.backend.error.connect(self._show_error)
         self.controller.current_changed.connect(self._current_sentence_changed)
         self.controller.mode_changed.connect(self._controller_mode_changed)
+        self.controller.phase_changed.connect(self._session_phase_changed)
         self.controller.prompt_changed.connect(self.prompt_label.setText)
         self.controller.completed.connect(lambda: self.prompt_label.setText(strings.PRACTICE_COMPLETED))
         self.review_controller.warning.connect(self.status_label.setText)
@@ -454,8 +455,9 @@ class MainWindow(QMainWindow):
         for name in ("open_video", "recent", "review"):
             sequence = self._settings.shortcuts.get(name, "")
             description = definitions[name].description
+            binding = sequence or "未设置"
             self.permanent_action_controls[name].setToolTip(
-                f"{description}（{sequence}）" if sequence else description
+                f"{description}（{binding}）"
             )
 
     def _handle_dock_action(self, name: str) -> None:
@@ -1129,7 +1131,17 @@ class MainWindow(QMainWindow):
         self.controller.on_position_ms(self._last_position_ms)
 
     def _set_pause_label(self, paused: bool) -> None:
+        if self.controller.phase is SessionPhase.BLANK:
+            self.action_dock.set_blank_paused(self.controller.blank_paused)
+            return
         self.action_dock.set_playing(not paused)
+
+    def _session_phase_changed(self, value: str) -> None:
+        phase = SessionPhase(value)
+        if phase is SessionPhase.BLANK:
+            self.action_dock.set_blank_paused(self.controller.blank_paused)
+            return
+        self.action_dock.set_playing(phase is SessionPhase.PLAYING)
 
     def _file_loaded(self, path: str) -> None:
         self.file_label.setText(Path(path).name)

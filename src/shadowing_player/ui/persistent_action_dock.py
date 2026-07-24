@@ -96,12 +96,12 @@ class PersistentActionDock(QFrame):
         self.mode_combo = QComboBox(settings_frame)
         for mode, label in self._MODE_LABELS.items():
             self.mode_combo.addItem(f"模式 · {label}", mode)
-        self.mode_combo.setFixedWidth(128)
+        self.mode_combo.setFixedWidth(138)
 
         self.plays_combo = QComboBox(settings_frame)
         for count in range(1, 4):
             self.plays_combo.addItem(f"每句×{count}", count)
-        self.plays_combo.setFixedWidth(88)
+        self.plays_combo.setFixedWidth(100)
 
         self.speed_down_button = self._action_button("−", "speed_down", 42)
         self.speed_down_button.setObjectName("stepButton")
@@ -109,7 +109,7 @@ class PersistentActionDock(QFrame):
         for step in range(20, 9, -1):
             speed = step / 20
             self.speed_combo.addItem(f"速度 {speed:.2f}×", speed)
-        self.speed_combo.setFixedWidth(112)
+        self.speed_combo.setFixedWidth(150)
         self.speed_up_button = self._action_button("+", "speed_up", 42)
         self.speed_up_button.setObjectName("stepButton")
 
@@ -117,14 +117,14 @@ class PersistentActionDock(QFrame):
         for value in (1.2, 1.5, 1.8, 2.0, 2.5):
             self.blank_combo.addItem(f"留白 {value:.1f}×", value)
         self.blank_combo.setCurrentIndex(1)
-        self.blank_combo.setFixedWidth(110)
+        self.blank_combo.setFixedWidth(138)
 
         self.loop_combo = QComboBox(settings_frame)
         for count in range(1, 11):
             self.loop_combo.addItem(f"循环 {count} 次", count)
         self.loop_combo.addItem("循环无限", None)
         self.loop_combo.setCurrentIndex(2)
-        self.loop_combo.setFixedWidth(108)
+        self.loop_combo.setFixedWidth(138)
 
         self.auto_advance_check = QCheckBox("自动下一句", settings_frame)
         self.auto_advance_check.setChecked(True)
@@ -191,6 +191,9 @@ class PersistentActionDock(QFrame):
     def set_playing(self, playing: bool) -> None:
         self.play_button.setText("暂停" if playing else "播放")
 
+    def set_blank_paused(self, paused: bool) -> None:
+        self.play_button.setText("继续留白" if paused else "暂停留白")
+
     def set_mode(self, mode: PlaybackMode) -> None:
         self.mode_action_button.setText(f"模式 · {self._MODE_LABELS[mode]}")
         self._set_active(
@@ -215,6 +218,5 @@ class PersistentActionDock(QFrame):
         for name, control in self._action_controls.items():
             description = self._TOOLTIP_TEXT[name]
             sequence = shortcuts.get(name, "")
-            control.setToolTip(
-                f"{description}（{sequence}）" if sequence else description
-            )
+            binding = sequence or "未设置"
+            control.setToolTip(f"{description}（{binding}）")

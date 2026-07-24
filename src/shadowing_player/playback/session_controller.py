@@ -128,6 +128,10 @@ class SessionController(QObject):
             return self.sentences[self.current_index]
         return None
 
+    @property
+    def blank_paused(self) -> bool:
+        return self._blank_paused
+
     def load_sentences(self, sentences: list[Sentence], video_duration_ms: int | None = None) -> None:
         self._invalidate_timer()
         self.sentences = list(sentences)
@@ -238,6 +242,7 @@ class SessionController(QObject):
             else:
                 self.timer.pause()
                 self._blank_paused = True
+            self.phase_changed.emit(self.phase.value)
             return
         if self.phase is SessionPhase.PLAYING:
             self.player.pause()
@@ -274,9 +279,9 @@ class SessionController(QObject):
         sentence = self.current_sentence
         if sentence is None:
             return
+        self._blank_paused = False
         self.player.pause()
         self._set_phase(SessionPhase.BLANK)
-        self._blank_paused = False
         duration_ms = max(1, round(sentence.duration_ms * self.config.blank_multiplier))
         self._timer_generation += 1
         generation = self._timer_generation

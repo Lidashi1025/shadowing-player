@@ -18,7 +18,7 @@ from shadowing_player.ui.main_window import MainWindow, _format_time
 from shadowing_player.ui import strings
 from shadowing_player.ui.sentence_progress_bar import SentenceProgressBar
 from shadowing_player.subtitles.models import Sentence, SubtitleSource
-from shadowing_player.playback.session_controller import PlaybackMode
+from shadowing_player.playback.session_controller import PlaybackMode, SessionPhase
 from shadowing_player.review.review_controller import ReviewItem
 from shadowing_player.shortcut_catalog import default_shortcuts
 from shadowing_player.storage.progress_store import RecentVideo, VideoProgress
@@ -279,6 +279,25 @@ def test_persistent_action_states_follow_external_changes(
     assert window.subtitle_action_button.text() == "字幕 · 隐藏"
     assert not window.subtitle_action_button.isChecked()
     assert window.play_button.text() == "暂停"
+
+
+def test_play_button_explains_running_and_paused_blank_time(
+    qtbot, tmp_path: Path
+) -> None:
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=FakeProgressStore(),
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+    window._apply_sentences([Sentence(0, 1_000, 2_000, "Hello")])
+    window.controller._set_phase(SessionPhase.BLANK)
+
+    assert window.play_button.text() == "暂停留白"
+
+    window.controller.toggle_pause()
+
+    assert window.play_button.text() == "继续留白"
 
 
 def test_review_mode_and_favorite_buttons_follow_the_review_sentence(

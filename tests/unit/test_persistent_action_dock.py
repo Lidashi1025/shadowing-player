@@ -55,11 +55,13 @@ def test_shortcut_hints_include_current_bindings(qtbot) -> None:
     dock.set_shortcut_hints(
         {
             "play_pause": "Space",
+            "repeat": "",
             "star": "Ctrl+S",
             "shortcut_help": "F1",
         }
     )
 
     assert "Space" in dock.play_button.toolTip()
+    assert "未设置" in dock.repeat_button.toolTip()
     assert "Ctrl+S" in dock.star_button.toolTip()
     assert "F1" in dock.shortcut_button.toolTip()
