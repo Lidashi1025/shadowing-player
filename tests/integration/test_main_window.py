@@ -19,6 +19,7 @@ from shadowing_player.ui import strings
 from shadowing_player.ui.sentence_progress_bar import SentenceProgressBar
 from shadowing_player.subtitles.models import Sentence, SubtitleSource
 from shadowing_player.playback.session_controller import PlaybackMode
+from shadowing_player.shortcut_catalog import default_shortcuts
 from shadowing_player.storage.progress_store import RecentVideo, VideoProgress
 from shadowing_player.transcription.service import TranscriptionCancelled
 
@@ -209,6 +210,72 @@ def test_compact_dark_layout_keeps_all_existing_controls(
         assert window.centralWidget().isAncestorOf(widget)
 
 
+def test_every_shortcut_has_a_permanent_visible_control(
+    qtbot, tmp_path: Path
+) -> None:
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=FakeProgressStore(),
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+
+    assert set(window.permanent_action_controls) == set(default_shortcuts())
+    assert all(
+        window.centralWidget().isAncestorOf(control)
+        for control in window.permanent_action_controls.values()
+    )
+
+
+def test_persistent_action_buttons_call_existing_behaviors(
+    qtbot, tmp_path: Path
+) -> None:
+    repository = FakeSentenceRepository()
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=FakeProgressStore(),
+        sentence_repository=repository,
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+    window._apply_sentences([Sentence(0, 1_000, 2_000, "Hello", id=7)])
+    window.controller.select_sentence(0, autoplay=False)
+
+    qtbot.mouseClick(window.star_button, Qt.MouseButton.LeftButton)
+    qtbot.mouseClick(window.speed_down_button, Qt.MouseButton.LeftButton)
+
+    assert window.sentence_model.sentences[0].starred is True
+    assert repository.starred == [(7, True)]
+    assert window.speed_combo.currentData() == 0.95
+
+
+def test_persistent_action_states_follow_external_changes(
+    qtbot, tmp_path: Path
+) -> None:
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=FakeProgressStore(),
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+    window._apply_sentences([Sentence(0, 1_000, 2_000, "Hello")])
+    window.controller.select_sentence(0, autoplay=False)
+
+    window.mode_combo.setCurrentIndex(
+        window.mode_combo.findData(PlaybackMode.SINGLE_LOOP)
+    )
+    window.subtitle_mode_combo.setCurrentIndex(
+        window.subtitle_mode_combo.findData("hidden")
+    )
+    window.backend.pause_changed.emit(False)
+
+    assert window.single_loop_button.isChecked()
+    assert window.mode_action_button.text() == "模式 · 精听"
+    assert window.subtitle_action_button.text() == "字幕 · 隐藏"
+    assert not window.subtitle_action_button.isChecked()
+    assert window.play_button.text() == "暂停"
+
+
 def test_auto_advance_label_has_enough_width_and_is_not_clipped(
     qtbot, tmp_path: Path
 ) -> None:
@@ -393,39 +460,56 @@ def test_recent_menu_lists_existing_videos_and_opens_selection(
     assert opened == [second]
 
 
-def test_compact_controls_fit_a_1024_pixel_window(qtbot, tmp_path: Path) -> None:
+def test_persistent_action_rows_fit_the_980_pixel_minimum_width(
+    qtbot, tmp_path: Path
+) -> None:
     window = MainWindow(
         backend_factory=FakeBackend,
         progress_store=FakeProgressStore(),
         settings_path=tmp_path / "settings.json",
     )
     qtbot.addWidget(window)
-    window.resize(1024, 680)
+    window.resize(980, 680)
     window.show()
+    qtbot.wait(10)
 
-    controls = [
-        window.previous_button,
-        window.repeat_button,
-        window.play_button,
-        window.next_button,
-        window.mode_combo,
-        window.plays_combo,
-        window.speed_combo,
-        window.blank_combo,
-        window.loop_combo,
-        window.auto_advance_check,
+    rows = [
+        [
+            window.previous_button,
+            window.repeat_button,
+            window.play_button,
+            window.next_button,
+            window.mode_action_button,
+            window.single_loop_button,
+            window.subtitle_action_button,
+            window.star_button,
+            window.fullscreen_button,
+            window.shortcut_button,
+        ],
+        [
+            window.mode_combo,
+            window.plays_combo,
+            window.speed_down_button,
+            window.speed_combo,
+            window.speed_up_button,
+            window.blank_combo,
+            window.loop_combo,
+            window.auto_advance_check,
+        ],
     ]
-    rectangles = [
-        (widget.mapTo(window, widget.rect().topLeft()).x(), widget.width())
-        for widget in controls
-    ]
-    assert all(
-        left + width <= next_left
-        for (left, width), (next_left, _next_width) in zip(
-            rectangles, rectangles[1:]
+    for controls in rows:
+        rectangles = [
+            (widget.mapTo(window, widget.rect().topLeft()).x(), widget.width())
+            for widget in controls
+        ]
+        assert all(
+            left + width <= next_left
+            for (left, width), (next_left, _next_width) in zip(
+                rectangles, rectangles[1:]
+            )
         )
-    )
-    assert rectangles[-1][0] + rectangles[-1][1] <= window.width()
+        assert rectangles[-1][0] + rectangles[-1][1] <= window.width()
+    assert window.width() == 980
 
 
 def test_compact_combo_boxes_show_their_complete_current_text(

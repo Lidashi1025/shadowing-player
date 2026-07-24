@@ -11,7 +11,6 @@ from PySide6.QtCore import QMimeData, QThread, QTimer, Qt, QUrl
 from PySide6.QtGui import QCloseEvent, QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
@@ -47,6 +46,7 @@ from shadowing_player.transcription.service import TranscriptionService
 from shadowing_player.transcription.worker import CancellationToken, TranscriptionWorker
 from shadowing_player.review.review_controller import ReviewController
 from shadowing_player.ui import strings
+from shadowing_player.ui.persistent_action_dock import PersistentActionDock
 from shadowing_player.ui.sentence_table_model import SentenceTableModel
 from shadowing_player.ui.sentence_item_delegate import SentenceItemDelegate
 from shadowing_player.ui.sentence_progress_bar import SentenceProgressBar
@@ -307,76 +307,44 @@ class MainWindow(QMainWindow):
         splitter.setSizes([755, 425])
         outer.addWidget(splitter, 1)
 
-        control_bar = QFrame(root)
-        control_bar.setObjectName("controlBar")
-        controls = QHBoxLayout(control_bar)
-        controls.setContentsMargins(14, 9, 14, 9)
-        controls.setSpacing(7)
-        self.previous_button = QPushButton("◀◀", control_bar)
-        self.repeat_button = QPushButton("↻", control_bar)
-        self.play_button = QPushButton(strings.PLAY, control_bar)
-        self.next_button = QPushButton("▶▶", control_bar)
-        self.play_button.setObjectName("primaryPlayButton")
-        for button in (self.previous_button, self.repeat_button, self.next_button):
-            button.setObjectName("transportButton")
-            button.setFixedWidth(44)
-        self.play_button.setFixedWidth(78)
+        self.action_dock = PersistentActionDock(root)
+        self.previous_button = self.action_dock.previous_button
+        self.repeat_button = self.action_dock.repeat_button
+        self.play_button = self.action_dock.play_button
+        self.next_button = self.action_dock.next_button
+        self.mode_action_button = self.action_dock.mode_action_button
+        self.single_loop_button = self.action_dock.single_loop_button
+        self.subtitle_action_button = self.action_dock.subtitle_action_button
+        self.star_button = self.action_dock.star_button
+        self.fullscreen_button = self.action_dock.fullscreen_button
+        self.shortcut_button = self.action_dock.shortcut_button
+        self.speed_down_button = self.action_dock.speed_down_button
+        self.speed_up_button = self.action_dock.speed_up_button
+        self.mode_combo = self.action_dock.mode_combo
+        self.plays_combo = self.action_dock.plays_combo
+        self.speed_combo = self.action_dock.speed_combo
+        self.blank_combo = self.action_dock.blank_combo
+        self.loop_combo = self.action_dock.loop_combo
+        self.auto_advance_check = self.action_dock.auto_advance_check
         self.play_button.setEnabled(False)
-        self.previous_button.setToolTip("上一句（快速连按两次 ←）")
-        self.repeat_button.setToolTip("重播本句（←）")
-        self.play_button.setToolTip("播放或暂停（Space）")
-        self.next_button.setToolTip("下一句（→）")
-        controls.addWidget(self.previous_button)
-        controls.addWidget(self.repeat_button)
-        controls.addWidget(self.play_button)
-        controls.addWidget(self.next_button)
-        controls.addSpacing(5)
-
-        self.mode_combo = QComboBox(control_bar)
-        for label, mode in (
-            ("观看", PlaybackMode.WATCH),
-            ("跟读", PlaybackMode.SENTENCE_PRACTICE),
-            ("精听", PlaybackMode.SINGLE_LOOP),
-            ("影子", PlaybackMode.SHADOWING),
-        ):
-            self.mode_combo.addItem(f"模式 · {label}", mode)
-        self.mode_combo.setFixedWidth(134)
-        self.plays_combo = QComboBox(control_bar)
-        for count in range(1, 4):
-            self.plays_combo.addItem(f"每句×{count}", count)
-        self.speed_combo = QComboBox(control_bar)
-        for step in range(20, 9, -1):
-            speed = step / 20
-            self.speed_combo.addItem(f"速度{speed:.2f}×", speed)
-        self.blank_combo = QComboBox(control_bar)
-        for value in (1.2, 1.5, 1.8, 2.0, 2.5):
-            self.blank_combo.addItem(f"留白{value:.1f}×", value)
-        self.blank_combo.setCurrentIndex(1)
-        self.loop_combo = QComboBox(control_bar)
-        for count in range(1, 11):
-            self.loop_combo.addItem(f"循环{count}次", count)
-        self.loop_combo.addItem("循环无限", None)
-        self.loop_combo.setCurrentIndex(2)
-        self.auto_advance_check = QCheckBox(strings.AUTO_ADVANCE, control_bar)
-        self.auto_advance_check.setChecked(True)
-        for combo, width in (
-            (self.plays_combo, 90),
-            (self.speed_combo, 106),
-            (self.blank_combo, 100),
-            (self.loop_combo, 94),
-        ):
-            combo.setFixedWidth(width)
-        self.auto_advance_check.setFixedWidth(
-            self.auto_advance_check.sizeHint().width() + 10
-        )
-        controls.addWidget(self.mode_combo)
-        controls.addWidget(self.plays_combo)
-        controls.addWidget(self.speed_combo)
-        controls.addWidget(self.blank_combo)
-        controls.addWidget(self.loop_combo)
-        controls.addWidget(self.auto_advance_check)
-        controls.addStretch(1)
-        outer.addWidget(control_bar)
+        self.permanent_action_controls = {
+            "open_video": self.open_button,
+            "recent": self.recent_button,
+            "play_pause": self.play_button,
+            "repeat": self.repeat_button,
+            "previous": self.previous_button,
+            "next": self.next_button,
+            "speed_up": self.speed_up_button,
+            "speed_down": self.speed_down_button,
+            "single_loop": self.single_loop_button,
+            "subtitle": self.subtitle_action_button,
+            "mode": self.mode_action_button,
+            "star": self.star_button,
+            "review": self.review_button,
+            "fullscreen": self.fullscreen_button,
+            "shortcut_help": self.shortcut_button,
+        }
+        outer.addWidget(self.action_dock)
 
         self.transcription_status = TranscriptionStatusBar(root)
         outer.addWidget(self.transcription_status)
@@ -401,6 +369,7 @@ class MainWindow(QMainWindow):
         self._install_shortcuts()
         self._update_practice_config()
         self.controller.set_mode(self._settings.mode)
+        self._refresh_action_dock()
         if settings_warning:
             self.status_label.setText(settings_warning)
 
@@ -415,6 +384,7 @@ class MainWindow(QMainWindow):
         self.previous_button.clicked.connect(lambda: self.controller.previous_sentence(True))
         self.repeat_button.clicked.connect(self.controller.repeat_current)
         self.next_button.clicked.connect(lambda: self.controller.next_sentence(True))
+        self.action_dock.action_requested.connect(self._handle_dock_action)
         self.speed_combo.currentIndexChanged.connect(self._change_speed)
         self.mode_combo.currentIndexChanged.connect(self._change_mode)
         self.plays_combo.currentIndexChanged.connect(self._update_practice_config)
@@ -476,6 +446,34 @@ class MainWindow(QMainWindow):
             shortcut = QShortcut(sequence, self)
             shortcut.activated.connect(slot)
             self._shortcuts.append(shortcut)
+        self.action_dock.set_shortcut_hints(self._settings.shortcuts)
+
+    def _handle_dock_action(self, name: str) -> None:
+        actions = {
+            "speed_up": lambda: self._step_speed(-1),
+            "speed_down": lambda: self._step_speed(1),
+            "single_loop": self._toggle_single_loop,
+            "subtitle": self._cycle_subtitle_mode,
+            "mode": self._cycle_mode,
+            "star": self._toggle_current_star,
+            "fullscreen": self._toggle_fullscreen,
+            "shortcut_help": self._show_shortcut_help,
+        }
+        action = actions.get(name)
+        if action is not None:
+            action()
+
+    def _refresh_action_dock(self) -> None:
+        self.action_dock.set_mode(self.current_mode)
+        self.action_dock.set_subtitle_mode(
+            str(self.subtitle_mode_combo.currentData())
+        )
+        sentence = self.controller.current_sentence
+        self.action_dock.set_starred(
+            bool(sentence and sentence.starred),
+            enabled=sentence is not None,
+        )
+        self.action_dock.set_fullscreen(self.isFullScreen())
 
     def _choose_video(self) -> None:
         path, _selected_filter = QFileDialog.getOpenFileName(
@@ -755,6 +753,7 @@ class MainWindow(QMainWindow):
             f"第 1 / {len(sentences)} 句" if sentences else "暂无句子"
         )
         self.controller.load_sentences(sentences, self.backend.duration_ms or None)
+        self._refresh_action_dock()
 
     def _subtitle_source_changed(self, index: int) -> None:
         if not 0 <= index < len(self._subtitle_sources):
@@ -785,6 +784,7 @@ class MainWindow(QMainWindow):
         if 0 <= sentence.index < len(self.controller.sentences):
             self.controller.sentences[sentence.index] = sentence
         self.status_label.setText("已收藏" if starred else "已取消收藏")
+        self._refresh_action_dock()
 
     def _toggle_current_star(self) -> None:
         if self.controller.current_index >= 0:
@@ -1054,6 +1054,7 @@ class MainWindow(QMainWindow):
 
     def _change_mode(self, _index: int) -> None:
         self.controller.set_mode(self.current_mode)
+        self._refresh_action_dock()
         if self.play_button.isEnabled():
             self.controller.play_current()
 
@@ -1072,6 +1073,7 @@ class MainWindow(QMainWindow):
         )
         model_index = self.sentence_model.index(index, 0)
         self.sentence_list.scrollTo(model_index)
+        self._refresh_action_dock()
 
     def _duration_changed(self, seconds: float) -> None:
         self.controller.video_duration_ms = round(seconds * 1000)
@@ -1083,7 +1085,7 @@ class MainWindow(QMainWindow):
         self.controller.on_position_ms(self._last_position_ms)
 
     def _set_pause_label(self, paused: bool) -> None:
-        self.play_button.setText(strings.PLAY if paused else strings.PAUSE)
+        self.action_dock.set_playing(not paused)
 
     def _file_loaded(self, path: str) -> None:
         self.file_label.setText(Path(path).name)
@@ -1173,6 +1175,7 @@ class MainWindow(QMainWindow):
         self.subtitle_label.setVisible(mode != "hidden")
         if self.controller.current_sentence is not None:
             self._show_sentence_text(self.controller.current_sentence)
+        self._refresh_action_dock()
 
     def _show_sentence_text(self, sentence: Sentence) -> None:
         mode = str(self.subtitle_mode_combo.currentData())
@@ -1211,6 +1214,7 @@ class MainWindow(QMainWindow):
 
     def _toggle_fullscreen(self) -> None:
         self.showNormal() if self.isFullScreen() else self.showFullScreen()
+        self._refresh_action_dock()
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802 - Qt API name
         if self._teardown_complete:
