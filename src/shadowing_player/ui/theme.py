@@ -36,7 +36,7 @@ QToolTip {
     border: 1px solid #3A4652;
     padding: 5px 8px;
 }
-#topBar, #controlBar, #statusBar {
+#topBar, #controlBar, #persistentActionDock, #statusBar {
     background: #151B21;
 }
 #topBar {
@@ -44,6 +44,18 @@ QToolTip {
 }
 #controlBar {
     border-top: 1px solid #2B3540;
+}
+#persistentActionDock {
+    background: #151B21;
+    border-top: 1px solid #2B3540;
+}
+#primaryActionRow {
+    background: transparent;
+}
+#settingsActionRow {
+    background: #12181E;
+    border: 1px solid #222B33;
+    border-radius: 9px;
 }
 #statusBar {
     border-top: 1px solid #222B33;
@@ -169,6 +181,35 @@ QMenu::item:selected {
 #primaryPlayButton:hover {
     background: #8CC4F2;
     border-color: #8CC4F2;
+}
+QPushButton[dockAction="true"] {
+    min-height: 36px;
+    padding: 0 8px;
+}
+QPushButton[actionState="true"][active="true"] {
+    color: #CFE8FA;
+    background: #203D57;
+    border-color: #4A83B5;
+}
+QPushButton[actionState="true"][active="true"]:hover {
+    background: #294D6D;
+    border-color: #66A8E4;
+}
+#favoriteAction[active="true"] {
+    color: #F4C56E;
+    background: #332A1D;
+    border-color: #765A2E;
+}
+#favoriteAction[active="true"]:hover {
+    background: #413421;
+    border-color: #E6A84C;
+}
+#stepButton {
+    min-width: 42px;
+    max-width: 42px;
+    padding: 0;
+    font-size: 18px;
+    font-weight: 700;
 }
 #transportButton {
     min-width: 36px;
