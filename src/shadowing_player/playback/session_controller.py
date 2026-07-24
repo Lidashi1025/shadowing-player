@@ -29,7 +29,6 @@ class SessionPhase(str, Enum):
 class PracticeConfig:
     blank_multiplier: float = 1.5
     plays_per_sentence: int = 1
-    loop_count: int | None = 3
     auto_advance: bool = True
 
 
@@ -261,6 +260,9 @@ class SessionController(QObject):
         self._set_phase(SessionPhase.PLAYING)
 
     def _finish_iteration(self) -> None:
+        if self.mode is PlaybackMode.SINGLE_LOOP:
+            self._start_iteration()
+            return
         self._set_phase(SessionPhase.PAUSED)
         self._iteration += 1
         if self.mode is PlaybackMode.SENTENCE_PRACTICE:
@@ -269,11 +271,6 @@ class SessionController(QObject):
             else:
                 self._begin_blank()
             return
-        if self.mode is PlaybackMode.SINGLE_LOOP:
-            if self.config.loop_count is None or self._iteration < self.config.loop_count:
-                self._start_iteration()
-            else:
-                self.player.pause()
 
     def _begin_blank(self) -> None:
         sentence = self.current_sentence

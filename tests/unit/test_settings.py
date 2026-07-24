@@ -43,3 +43,16 @@ def test_old_subtitle_visible_false_migrates_to_hidden_mode(tmp_path: Path) -> N
 
     assert warning is None
     assert settings.subtitle_mode == "hidden"
+
+
+def test_legacy_loop_count_is_ignored_without_rejecting_settings(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "settings.json"
+    path.write_text('{"loop_count": 3, "speed": 0.75}', encoding="utf-8")
+
+    settings, warning = load_settings(path)
+
+    assert warning is None
+    assert settings.speed == 0.75
+    assert not hasattr(settings, "loop_count")

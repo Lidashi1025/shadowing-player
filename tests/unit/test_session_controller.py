@@ -158,19 +158,17 @@ def test_manual_sentence_practice_stays_after_blank() -> None:
     assert player.pause_count >= 1
 
 
-def test_single_loop_stops_after_configured_count() -> None:
-    config = PracticeConfig(loop_count=3)
-    controller, player, _timer = make_controller(config)
+def test_single_loop_keeps_restarting_without_iteration_limit() -> None:
+    controller, player, _timer = make_controller()
     controller.set_mode(PlaybackMode.SINGLE_LOOP)
     controller.play_current()
 
-    controller.on_position_ms(2_250)
-    controller.on_position_ms(2_250)
-    controller.on_position_ms(2_250)
+    for _ in range(5):
+        controller.on_position_ms(2_250)
 
-    assert player.seeks == [750, 750, 750]
-    assert controller.phase is SessionPhase.PAUSED
-    assert player.pause_count == 1
+    assert player.seeks == [750] * 6
+    assert controller.phase is SessionPhase.PLAYING
+    assert player.pause_count == 0
 
 
 def test_changing_mode_invalidates_old_blank_callback() -> None:
@@ -213,16 +211,22 @@ def test_blank_countdown_can_be_paused_and_resumed() -> None:
     assert timer.is_paused is False
 
 
-def test_infinite_single_loop_keeps_restarting() -> None:
-    controller, player, _timer = make_controller(PracticeConfig(loop_count=None))
+def test_space_pauses_and_resumes_single_loop_after_multiple_restarts() -> None:
+    controller, player, _timer = make_controller()
     controller.set_mode(PlaybackMode.SINGLE_LOOP)
     controller.play_current()
 
-    for _ in range(5):
+    for _ in range(4):
         controller.on_position_ms(2_250)
 
-    assert len(player.seeks) == 6
+    controller.toggle_pause()
+    assert controller.phase is SessionPhase.PAUSED
+
+    controller.toggle_pause()
+    controller.on_position_ms(2_250)
+
     assert controller.phase is SessionPhase.PLAYING
+    assert len(player.seeks) == 6
 
 
 def test_shadowing_mode_plays_continuously_and_tracks_current_sentence() -> None:

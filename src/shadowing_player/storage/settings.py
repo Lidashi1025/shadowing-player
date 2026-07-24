@@ -14,7 +14,6 @@ class AppSettings:
     mode: PlaybackMode = PlaybackMode.WATCH
     blank_multiplier: float = 1.5
     plays_per_sentence: int = 1
-    loop_count: int | None = 3
     auto_advance: bool = True
     subtitle_visible: bool = True
     subtitle_mode: str = "bilingual"
@@ -35,7 +34,6 @@ def load_settings(path: Path) -> tuple[AppSettings, str | None]:
             mode=PlaybackMode(payload.get("mode", PlaybackMode.WATCH.value)),
             blank_multiplier=float(payload.get("blank_multiplier", 1.5)),
             plays_per_sentence=int(payload.get("plays_per_sentence", 1)),
-            loop_count=payload.get("loop_count", 3),
             auto_advance=bool(payload.get("auto_advance", True)),
             subtitle_visible=subtitle_visible,
             subtitle_mode=subtitle_mode,
@@ -47,8 +45,6 @@ def load_settings(path: Path) -> tuple[AppSettings, str | None]:
             raise ValueError("blank_multiplier")
         if not 1 <= settings.plays_per_sentence <= 3:
             raise ValueError("plays_per_sentence")
-        if settings.loop_count is not None and not 1 <= int(settings.loop_count) <= 10:
-            raise ValueError("loop_count")
         if settings.subtitle_mode not in {"english", "bilingual", "hidden"}:
             raise ValueError("subtitle_mode")
         return settings, None

@@ -205,7 +205,6 @@ def test_compact_dark_layout_keeps_all_existing_controls(
         window.plays_combo,
         window.speed_combo,
         window.blank_combo,
-        window.loop_combo,
         window.auto_advance_check,
     ):
         assert window.centralWidget().isAncestorOf(widget)
@@ -579,7 +578,6 @@ def test_persistent_action_rows_fit_the_980_pixel_minimum_width(
             window.speed_combo,
             window.speed_up_button,
             window.blank_combo,
-            window.loop_combo,
             window.auto_advance_check,
         ],
     ]
@@ -614,7 +612,6 @@ def test_compact_combo_boxes_show_their_complete_current_text(
         window.plays_combo,
         window.speed_combo,
         window.blank_combo,
-        window.loop_combo,
     ):
         for index in range(combo.count()):
             combo.setCurrentIndex(index)

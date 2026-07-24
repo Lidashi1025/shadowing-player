@@ -326,7 +326,6 @@ class MainWindow(QMainWindow):
         self.plays_combo = self.action_dock.plays_combo
         self.speed_combo = self.action_dock.speed_combo
         self.blank_combo = self.action_dock.blank_combo
-        self.loop_combo = self.action_dock.loop_combo
         self.auto_advance_check = self.action_dock.auto_advance_check
         self.play_button.setEnabled(False)
         self.permanent_action_controls = {
@@ -391,7 +390,6 @@ class MainWindow(QMainWindow):
         self.mode_combo.currentIndexChanged.connect(self._change_mode)
         self.plays_combo.currentIndexChanged.connect(self._update_practice_config)
         self.blank_combo.currentIndexChanged.connect(self._update_practice_config)
-        self.loop_combo.currentIndexChanged.connect(self._update_practice_config)
         self.auto_advance_check.toggled.connect(self._update_practice_config)
         self.subtitle_mode_combo.currentIndexChanged.connect(self._subtitle_mode_changed)
         self.subtitle_combo.currentIndexChanged.connect(self._subtitle_source_changed)
@@ -1107,7 +1105,6 @@ class MainWindow(QMainWindow):
     def _update_practice_config(self, *_args) -> None:
         self.controller.config.plays_per_sentence = int(self.plays_combo.currentData())
         self.controller.config.blank_multiplier = float(self.blank_combo.currentData())
-        self.controller.config.loop_count = self.loop_combo.currentData()
         self.controller.config.auto_advance = self.auto_advance_check.isChecked()
 
     def _current_sentence_changed(self, index: int, sentence) -> None:
@@ -1178,7 +1175,6 @@ class MainWindow(QMainWindow):
         self._set_combo_data(self.mode_combo, settings.mode)
         self._set_combo_data(self.plays_combo, settings.plays_per_sentence)
         self._set_combo_data(self.blank_combo, settings.blank_multiplier)
-        self._set_combo_data(self.loop_combo, settings.loop_count)
         self.auto_advance_check.setChecked(settings.auto_advance)
         subtitle_mode = settings.subtitle_mode
         if not settings.subtitle_visible:
@@ -1217,7 +1213,6 @@ class MainWindow(QMainWindow):
             mode=self._review_return_mode or self.current_mode,
             blank_multiplier=float(self.blank_combo.currentData()),
             plays_per_sentence=int(self.plays_combo.currentData()),
-            loop_count=self.loop_combo.currentData(),
             auto_advance=self.auto_advance_check.isChecked(),
             subtitle_visible=self.subtitle_mode_combo.currentData() != "hidden",
             subtitle_mode=str(self.subtitle_mode_combo.currentData()),

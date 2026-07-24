@@ -119,13 +119,6 @@ class PersistentActionDock(QFrame):
         self.blank_combo.setCurrentIndex(1)
         self.blank_combo.setFixedWidth(138)
 
-        self.loop_combo = QComboBox(settings_frame)
-        for count in range(1, 11):
-            self.loop_combo.addItem(f"循环 {count} 次", count)
-        self.loop_combo.addItem("循环无限", None)
-        self.loop_combo.setCurrentIndex(2)
-        self.loop_combo.setFixedWidth(138)
-
         self.auto_advance_check = QCheckBox("自动下一句", settings_frame)
         self.auto_advance_check.setChecked(True)
         self.auto_advance_check.setFixedWidth(
@@ -139,7 +132,6 @@ class PersistentActionDock(QFrame):
             self.speed_combo,
             self.speed_up_button,
             self.blank_combo,
-            self.loop_combo,
             self.auto_advance_check,
         ):
             self.settings_row.addWidget(widget)
