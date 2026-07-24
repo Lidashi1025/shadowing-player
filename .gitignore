@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+vendor/libmpv/*.dll
+build/
+dist/
+cache/
+models/
+*.wav
+*.mp3
+*.mp4
+*.mkv
+*.sqlite
+settings.json

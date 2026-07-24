@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>兒童影子跟讀播放器 — 產品規劃書</title>
+<style>
+:root{
+  --paper:#F6F7F4; --card:#FFFFFF; --ink:#22303A; --ink2:#5A6872; --ink3:#8B979F;
+  --line:#E2E5E1; --line2:#CDD3CF;
+  --blue:#2E6DA3; --blue-bg:#E8F0F8; --blue-dk:#1D4A73;
+  --honey:#DE9E3A; --moss:#2E7D5B; --moss-bg:#E6F2EC;
+  --dark:#1E252B;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Microsoft JhengHei","PingFang TC","Noto Sans TC","Segoe UI",sans-serif;
+  font-size:16px;line-height:1.85;}
+.wrap{max-width:880px;margin:0 auto;padding:56px 28px 80px;}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+a:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
+code,kbd,pre{font-family:Consolas,"Cascadia Mono",ui-monospace,monospace;font-size:.88em}
+code{background:#EDEFEA;padding:1px 6px;border-radius:5px}
+kbd{background:var(--card);border:1px solid var(--line2);border-bottom-width:2px;border-radius:6px;padding:1px 8px;white-space:nowrap}
+pre{background:#F0F2ED;border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow-x:auto;line-height:1.7}
+p{margin:0 0 1em}
+ul{margin:0 0 1.2em;padding-left:1.4em}
+li{margin:.35em 0}
+strong{font-weight:700}
+
+.hero{padding:8px 0 40px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.eyebrow{font-size:13px;letter-spacing:.35em;color:var(--ink3);margin-bottom:14px}
+h1{font-size:38px;line-height:1.3;margin:0 0 14px;letter-spacing:.02em}
+.thesis{font-size:17px;color:var(--ink2);max-width:640px;margin-bottom:22px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:26px}
+.chip{font-size:13px;color:var(--ink2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 14px}
+.segbar{display:flex;gap:4px;height:10px}
+.segbar .seg{flex:1;background:#E4E7E2;border-radius:3px}
+.segbar .seg.on{background:var(--blue)}
+.herobar{max-width:520px}
+.barnote{font-size:12px;color:var(--ink3);margin-top:8px}
+
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin:26px 0 8px}
+.toc a{font-size:13px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 14px;color:var(--ink2)}
+.toc a:hover{border-color:var(--blue);color:var(--blue);text-decoration:none}
+
+.chap{margin-top:64px}
+.chaphead{margin-bottom:22px}
+.chaphead .minibar{display:flex;gap:3px;height:6px;width:132px;margin-bottom:12px}
+.minibar i{flex:1;background:#E4E7E2;border-radius:2px}
+.minibar i.on{background:var(--blue)}
+.chapnum{font-size:13px;letter-spacing:.3em;color:var(--blue);margin-bottom:4px}
+h2{font-size:26px;margin:0;line-height:1.4}
+h3{font-size:18px;margin:1.8em 0 .6em}
+
+table{width:100%;border-collapse:collapse;margin:0 0 1.4em;font-size:14.5px;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.7}
+th{font-size:13px;color:var(--ink2);font-weight:700;background:#FAFBF8}
+tr:last-child td{border-bottom:none}
+
+.callout{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--honey);border-radius:0 10px 10px 0;padding:14px 18px;margin:0 0 1.4em}
+.callout.blue{border-left-color:var(--blue)}
+.callout.green{border-left-color:var(--moss)}
+.callout p:last-child{margin-bottom:0}
+
+.figcap{font-size:13px;color:var(--ink3);margin:10px 2px 0}
+
+.mock{background:var(--card);border:1px solid var(--line2);border-radius:14px;overflow:hidden;margin:18px 0 6px;font-size:12.5px;line-height:1.55}
+.m-top{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.m-name{font-weight:700;font-size:13px}
+.m-dim{color:var(--ink3)}
+.m-right{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pill{padding:2px 10px;border:1px solid var(--line2);border-radius:999px;color:var(--ink2);white-space:nowrap}
+.pill.on{background:var(--blue-bg);color:var(--blue-dk);border-color:transparent}
+.m-main{display:grid;grid-template-columns:1.6fr 1fr}
+.m-left{border-right:1px solid var(--line);min-width:0}
+.m-video{aspect-ratio:16/9;background:var(--dark);color:#7C8790;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.m-video .tri{font-size:30px}
+.m-sub{text-align:center;padding:12px 14px 6px}
+.m-sub .en{font-size:17px;font-weight:700}
+.m-sub .zh{font-size:12.5px;color:var(--ink2);margin-top:2px}
+.m-segs{display:flex;gap:2px;height:7px;margin:8px 14px 4px}
+.m-segs i{background:#DFE3DE}
+.m-segs i:first-child{border-radius:3px 0 0 3px}
+.m-segs i:last-child{border-radius:0 3px 3px 0}
+.m-segs i.cur{background:var(--blue);border-radius:2px}
+.m-time{display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);padding:0 14px 12px}
+.m-list{display:flex;flex-direction:column;min-width:0}
+.m-listhead{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line)}
+.m-listhead b{font-size:13px}
+.m-listhead span{font-size:11px;color:var(--ink3)}
+.row{display:flex;gap:8px;align-items:center;padding:7px 12px;color:var(--ink2)}
+.row .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .ok{color:var(--moss)}
+.row .st{color:var(--line2)}
+.row .st.fav{color:var(--honey)}
+.row.cur{background:var(--blue-bg);color:var(--blue-dk);font-weight:700}
+.m-stats{margin-top:auto;padding:9px 12px;border-top:1px solid var(--line);font-size:11px;color:var(--ink3)}
+.m-ctrl{display:flex;align-items:center;gap:8px;padding:12px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+.btn{width:34px;height:34px;border:1px solid var(--line2);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink2)}
+.btn.big{width:42px;height:42px;background:var(--ink);color:#fff;border:none;font-size:16px}
+.vline{width:1px;height:22px;background:var(--line)}
+
+.k-top{display:flex;align-items:center;gap:10px;padding:12px 16px;flex-wrap:wrap}
+.k-lock{font-size:11px;color:var(--ink3)}
+.k-stars{margin-left:auto;display:flex;align-items:center;gap:8px}
+.k-stars .s{color:var(--honey);font-size:15px;letter-spacing:2px}
+.k-stars .s .off{color:var(--line2)}
+.k-stars em{font-style:normal;font-size:12px;color:var(--ink2)}
+.k-video{aspect-ratio:21/9;background:var(--dark);color:#7C8790;margin:0 16px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:12px}
+.k-sub{text-align:center;padding:18px 16px 6px}
+.k-sub .en{font-size:23px;font-weight:700;line-height:1.4}
+.k-turn{display:inline-flex;align-items:center;gap:10px;margin-top:14px;padding:8px 18px;background:var(--moss-bg);border-radius:999px;color:var(--moss);font-weight:700;font-size:14px}
+.k-cd{width:26px;height:26px;border:2px solid var(--moss);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px}
+.k-btns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:18px 16px 20px}
+.kb{border:1px solid var(--line2);border-radius:12px;padding:15px 8px;text-align:center;color:var(--ink2)}
+.kb .ic{font-size:24px;display:block;margin-bottom:5px}
+.kb b{font-size:14px;color:var(--ink)}
+.kb.hl{background:var(--blue-bg);border-color:transparent}
+.kb.hl b{color:var(--blue-dk)}
+
+.phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:6px 0 1.4em}
+.phase{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.phase .tag{display:inline-block;font-size:12px;background:var(--blue-bg);color:var(--blue-dk);border-radius:999px;padding:2px 12px;margin-bottom:10px}
+.phase h4{margin:0 0 8px;font-size:15.5px}
+.phase p{font-size:13.5px;color:var(--ink2);margin:0 0 10px}
+.phase .goal{font-size:12.5px;color:var(--ink3);border-top:1px dashed var(--line2);padding-top:8px}
+
+footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);font-size:13.5px;color:var(--ink2)}
+
+@media (max-width:640px){
+  .m-main{grid-template-columns:1fr}
+  .m-left{border-right:none;border-bottom:1px solid var(--line)}
+  h1{font-size:30px}
+}
+@media print{
+  body{background:#fff}
+  .wrap{padding:0}
+  .toc{display:none}
+  .mock,.phase,table,pre{page-break-inside:avoid}
+  .chap{margin-top:40px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">產品規劃書 v1.0 ｜ 2026-07-22</div>
+  <h1>兒童影子跟讀播放器</h1>
+  <p class="thesis">一台以「句子」為最小控制單位的影片復讀機，加上為 6 歲兒童設計的跟讀外殼——自動切句、逐句留白、錄音對比、星星獎勵，全程離線。</p>
+  <div class="chips">
+    <span class="chip">Windows 11 本機軟體</span>
+    <span class="chip">MP4 / MKV</span>
+    <span class="chip">內嵌與外掛字幕</span>
+    <span class="chip">全離線運作</span>
+    <span class="chip">6 歲兒童 + 陪同家長</span>
+  </div>
+  <div class="segbar herobar">
+    <span class="seg on"></span><span class="seg on"></span><span class="seg on"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+  </div>
+  <div class="barnote">一格＝一句：本產品的核心進度條，也是這份文件的章節記號。</div>
+  <nav class="toc">
+    <a href="#c1">一 概述</a><a href="#c2">二 語句切割</a><a href="#c3">三 播放模式</a><a href="#c4">四 家長介面</a><a href="#c5">五 孩童介面</a><a href="#c6">六 操作便利</a><a href="#c7">七 技術選型</a><a href="#c8">八 開發分期</a><a href="#ax">附錄</a>
+  </nav>
+</header>
+
+<section class="chap" id="c1">
+  <div class="chaphead">
+    <div class="minibar"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="chapnum">第一章</div>
+    <h2>專案概述與設計原則</h2>
+  </div>
+  <p>家長載入卡通影片後，軟體自動把語音切成句子清單，支援逐句播放、自動留白等孩子模仿、單句循環、降速影子跟讀與錄音對比。整份規劃圍繞兩條核心原則：</p>
+  <div class="callout blue">
+    <p><strong>1. 一切控制以「句子」為最小單位，而非秒數。</strong> 傳統播放器的 AB 循環要手動設點，操作成本太高。句子邊界最可靠的來源是字幕時間軸，因此軟體骨架是：影片 → 帶時間戳的句子清單 → 所有操作（上一句、重播、循環、留白）都針對句子。</p>
+    <p><strong>2. 雙介面。</strong> 家長模式功能齊全；孩童模式只保留三顆大按鈕與獎勵系統，並鎖定防止誤觸退出。</p>
+  </div>
+</section>
+
+<section class="chap" id="c2">
+  <div class="chaphead">
+    <div class="minibar"><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="chapnum">第二章</div>
+    <h2>語句自動切割</h2>
+  </div>
+  <h3>2.1 三層策略（依優先順序）</h3>
+  <table>
+    <tr><th style="width:26%">層級</th><th>做法</th></tr>
+    <tr><td><strong>① 字幕優先</strong></td><td>MKV 常內嵌字幕軌（以 ffmpeg 抽取：<code>ffmpeg -i in.mkv -map 0:s:0 out.srt</code>）；MP4 搭配同資料夾同名 <code>.srt</code> / <code>.ass</code> 自動載入。字幕每一條自帶起訖時間，直接解析為句子清單——零成本、最準確。</td></tr>
+    <tr><td><strong>② 本機 AI 轉寫</strong></td><td>無字幕時用 faster-whisper（small 模型、int8 量化，CPU 即可）離線產出帶時間戳的句子，存成 <code>.srt</code> 快取。20 分鐘卡通約 3–5 分鐘完成，背景執行並顯示進度；之後再開同一部片即秒載入。</td></tr>
+    <tr><td><strong>③ 切割微調</strong></td><td>相鄰過短句（&lt; 1 秒）自動併入下一句；過長句（&gt; 8 秒）在停頓處拆分；每句起訖各外擴 0.2–0.3 秒緩衝避免切字；家長可在句子清單手動「合併 / 拆分」。</td></tr>
+  </table>
+  <h3>2.2 句子資料欄位</h3>
+  <p><code>index</code>（句序）、<code>start / end</code>（起訖毫秒）、<code>text_en</code>（原文）、<code>text_zh</code>（中文，選配）、<code>practiced</code>（已練習）、<code>starred</code>（收藏）。</p>
+</section>
+
+<section class="chap" id="c3">
+  <div class="chaphead">
+    <div class="minibar"><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="chapnum">第三章</div>
+    <h2>播放模式</h2>
+  </div>
+  <table>
+    <tr><th style="width:22%">模式</th><th>行為</th><th style="width:26%">適用情境</th></tr>
+    <tr><td>觀看模式</td><td>正常連續播放，字幕高亮跟隨</td><td>先熟悉劇情</td></tr>
+    <tr><td><strong>逐句跟讀（主力）</strong></td><td>播完一句 → 自動暫停留白 → 自動播下一句</td><td>日常練習</td></tr>
+    <tr><td>單句精聽</td><td>鎖定當前句循環 N 次或無限循環</td><td>攻克難句</td></tr>
+    <tr><td>影子跟讀</td><td>連續播放但整體降速 0.6–0.9×</td><td>程度提升後同步開口</td></tr>
+  </table>
+  <div class="callout blue">
+    <p><strong>逐句跟讀的關鍵細節：</strong>留白時長＝該句長度 × 倍數（預設 1.5，可調 1.2–2.5），固定秒數對長短句都不合適；可設定每句先連播 1–3 次再留白；前進方式可選「倒數結束自動下一句」或「手動確認」；留白期間顯示「換你說！」提示與倒數圈。</p>
+  </div>
+  <div class="callout green">
+    <p><strong>錄音對比（強烈建議做）：</strong>留白期間自動錄下孩子的聲音，之後播放「原音 → 孩子的聲音」對比。六歲兒童通常非常喜歡聽自己的聲音，這是最有效的參與誘因。<strong>刻意不做 AI 發音評分</strong>——語音辨識對兒童發音準確率不穩，錯誤的低分只會打擊信心；「聽自己 vs 原音」能讓孩子自然自我修正。</p>
+  </div>
+  <div class="callout">
+    <p><strong>變速不變調（必做）：</strong>所有變速皆須 time-stretch 處理（mpv 內建 scaletempo2 濾鏡），否則慢速變低沉怪聲、快速變花栗鼠音，孩子會抗拒。</p>
+  </div>
+</section>
+
+<section class="chap" id="c4">
+  <div class="chaphead">
+    <div class="minibar"><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+    <div class="chapnum">第四章</div>
+    <h2>介面規劃 — 家長模式</h2>
+  </div>
+
+  <div class="mock">
+    <div class="m-top">
+      <span class="m-name">Peppa Pig S01E03.mkv</span>
+      <span class="m-dim">字幕已載入 · 48 句</span>
+      <span class="m-right">
+        <span class="pill">英文</span><span class="pill on">雙語</span><span class="pill">隱藏</span>
+        <span class="vline"></span>
+        <span class="pill">孩童模式</span><span class="pill">設定</span>
+      </span>
+    </div>
+    <div class="m-main">
+      <div class="m-left">
+        <div class="m-video"><span class="tri">▶</span><span>影片畫面</span></div>
+        <div class="m-sub">
+          <div class="en">I like jumping in muddy puddles!</div>
+          <div class="zh">我喜歡在泥巴水坑裡跳！</div>
+        </div>
+        <div class="m-segs"><i style="flex:2"></i><i style="flex:3"></i><i class="cur" style="flex:2"></i><i style="flex:4"></i><i style="flex:2"></i><i style="flex:3"></i></div>
+        <div class="m-time"><span>03:12</span><span>第 12 / 48 句 · 每段色塊＝一句</span><span>05:04</span></div>
+      </div>
+      <div class="m-list">
+        <div class="m-listhead"><b>句子清單</b><span>點句跳播 · 點星收藏</span></div>
+        <div class="row"><span class="ok">✓</span><span class="tx">10. Where are my boots?</span><span class="st">★</span></div>
+        <div class="row"><span class="ok">✓</span><span class="tx">11. It is raining today.</span><span class="st">★</span></div>
+        <div class="row cur"><span>▶</span><span class="tx">12. I like jumping in muddy puddles!</span><span class="st">★</span></div>
+        <div class="row"><span style="width:12px"></span><span class="tx">13. Everyone loves muddy puddles.</span><span class="st">★</span></div>
+        <div class="row"><span style="width:12px"></span><span class="tx">14. Let us jump together!</span><span class="st fav">★</span></div>
+        <div class="m-stats">今日已練 12 句 · 收藏 3 句</div>
+      </div>
+    </div>
+    <div class="m-ctrl">
+      <span class="btn">⏮</span><span class="btn">↻</span><span class="btn big">⏸</span><span class="btn">⏭</span>
+      <span class="vline"></span>
+      <span class="pill on">模式：逐句跟讀</span><span class="pill">每句 ×2</span><span class="pill">速度 0.75×</span><span class="pill">留白 1.5×</span><span class="pill">🎤 錄音</span>
+    </div>
+  </div>
+  <p class="figcap">圖一：家長模式。左為影片與大字字幕，右為句子清單，底部為逐句控制列。</p>
+
+  <p style="margin-top:18px">設計意圖：底部進度條不是普通時間軸，而是<strong>一句一格的分段條</strong>，家長一眼看出練到哪、還剩幾句；右側句子清單讓「跳到某句」「收藏難句」都是單擊完成，練過的句子打勾。</p>
+</section>
+
+<section class="chap" id="c5">
+  <div class="chaphead">
+    <div class="minibar"><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div>
+    <div class="chapnum">第五章</div>
+    <h2>介面規劃 — 孩童模式</h2>
+  </div>
+
+  <div class="mock">
+    <div class="k-top">
+      <span class="k-lock">🔒 長按角落 3 秒回家長模式</span>
+      <span class="k-stars"><span class="s">★★★<span class="off">★★</span></span><em>今天 7 / 10 句</em></span>
+    </div>
+    <div class="k-video">影片畫面（暫停中）</div>
+    <div class="k-sub">
+      <div class="en">I like jumping in muddy puddles!</div>
+      <div class="k-turn"><span>🎤 換你說囉！</span><span class="k-cd">3</span></div>
+    </div>
+    <div class="k-btns">
+      <div class="kb"><span class="ic">↻</span><b>再聽一次</b></div>
+      <div class="kb hl"><span class="ic">👂</span><b>聽我說的</b></div>
+      <div class="kb"><span class="ic">→</span><b>下一句</b></div>
+    </div>
+  </div>
+  <p class="figcap">圖二：孩童模式。大字字幕、換你說提示與倒數圈、三顆大按鈕、右上角星星進度。</p>
+
+  <ul style="margin-top:18px">
+    <li>倒數結束自動前進，孩子不按任何鍵也能一直練下去；按鈕是「想控制時」才用。</li>
+    <li>每練 10 句得一顆大星星 + 小動畫；家長可設每日目標句數。</li>
+    <li><strong>無任何負面回饋</strong>：沒有分數、沒有「說錯了」，只有累積。</li>
+    <li>鎖定機制：長按畫面角落 3 秒才能返回家長模式，防止誤觸退出或亂改設定。</li>
+  </ul>
+</section>
+
+<section class="chap" id="c6">
+  <div class="chaphead">
+    <div class="minibar"><i></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i></div>
+    <div class="chapnum">第六章</div>
+    <h2>操作與便利功能</h2>
+  </div>
+  <h3>6.1 全鍵盤快捷鍵（可自訂）</h3>
+  <table>
+    <tr><th style="width:30%">按鍵</th><th>功能</th></tr>
+    <tr><td><kbd>Space</kbd></td><td>暫停 / 續播</td></tr>
+    <tr><td><kbd>←</kbd></td><td>重播本句（連按兩次＝上一句）</td></tr>
+    <tr><td><kbd>→</kbd></td><td>下一句</td></tr>
+    <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>加速 / 減速（每檔 0.05）</td></tr>
+    <tr><td><kbd>L</kbd></td><td>切換單句循環</td></tr>
+    <tr><td><kbd>R</kbd></td><td>重錄 / 播放孩子錄音</td></tr>
+    <tr><td><kbd>S</kbd></td><td>收藏本句</td></tr>
+    <tr><td><kbd>M</kbd></td><td>字幕循環切換（英文 → 雙語 → 隱藏）</td></tr>
+    <tr><td><kbd>Tab</kbd></td><td>切換播放模式</td></tr>
+    <tr><td><kbd>F</kbd></td><td>全螢幕</td></tr>
+  </table>
+  <h3>6.2 沙發遙控</h3>
+  <p>無線簡報筆或迷你數字鍵盤（百元等級）本質是發送鍵盤訊號，搭配自訂鍵位映射即可在沙發距離遙控，零額外開發。</p>
+  <h3>6.3 記憶與複習</h3>
+  <p>每部影片自動記憶播放位置、速度、模式、字幕設定。收藏句可跨影片彙整成「複習清單」，一鍵連續播放多集裡的難句，同樣支援逐句留白跟讀。</p>
+  <h3>6.4 護眼提醒</h3>
+  <p>連續使用達設定時長（預設 20 分鐘）時，孩童模式顯示休息提示動畫。</p>
+</section>
+
+<section class="chap" id="c7">
+  <div class="chaphead">
+    <div class="minibar"><i></i><i></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i></div>
+    <div class="chapnum">第七章</div>
+    <h2>技術選型（Windows 11）</h2>
+  </div>
+  <h3>7.1 主方案</h3>
+  <table>
+    <tr><th style="width:20%">元件</th><th style="width:34%">選型</th><th>理由</th></tr>
+    <tr><td>介面框架</td><td>Python + PySide6（Qt）</td><td>桌面介面成熟、打包容易</td></tr>
+    <tr><td>播放核心</td><td>libmpv（python-mpv）</td><td>MKV/MP4 與內嵌字幕全格式支援；scaletempo2 變速不變調；毫秒級精準 seek（hr-seek）</td></tr>
+    <tr><td>語音轉寫</td><td>faster-whisper（small，int8）</td><td>本機離線、免費，CPU 可跑</td></tr>
+    <tr><td>錄音</td><td>sounddevice（16 kHz 單聲道）</td><td>輕量穩定</td></tr>
+    <tr><td>資料儲存</td><td>SQLite + settings.json</td><td>進度 / 收藏 / 統計</td></tr>
+  </table>
+  <p>全程離線運作，無隱私疑慮。</p>
+  <h3>7.2 替代方案</h3>
+  <p>Electron 或 Tauri 做介面（孩童模式的動畫用 CSS 容易做），但瀏覽器 <code>&lt;video&gt;</code> 對 MKV 支援差、變速常變調，播放核心仍應掛 mpv；打包體積也較大。</p>
+  <h3>7.3 為何不用現成軟體</h3>
+  <p>PotPlayer 有 AB 循環但沒有「句子」概念；Language Reactor 僅限瀏覽器串流。沒有現成品同時具備「本機 MKV + 逐句自動留白 + 兒童介面 + 錄音對比」，這正是自製的價值。</p>
+</section>
+
+<section class="chap" id="c8">
+  <div class="chaphead">
+    <div class="minibar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on"></i></div>
+    <div class="chapnum">第八章</div>
+    <h2>開發分期</h2>
+  </div>
+  <div class="phases">
+    <div class="phase">
+      <span class="tag">第一版 · 核心可用</span>
+      <h4>逐句跟讀骨架</h4>
+      <p>載入影片與字幕 → 句子清單 → 逐句跟讀（留白倍數）→ 單句循環 → 變速不變調 → 快捷鍵 → 進度記憶。</p>
+      <div class="goal">驗收：有字幕的影片可完整跑一次逐句跟讀流程。</div>
+    </div>
+    <div class="phase">
+      <span class="tag">第二版 · 內容打通</span>
+      <h4>無字幕也能練</h4>
+      <p>faster-whisper 轉寫與快取、收藏句 + 跨影片複習清單、雙語字幕、手動合併 / 拆分句子。</p>
+      <div class="goal">驗收：無字幕影片也能自動生成句子清單。</div>
+    </div>
+    <div class="phase">
+      <span class="tag">第三版 · 兒童體驗</span>
+      <h4>孩子自己練</h4>
+      <p>錄音對比、孩童模式全套（大按鈕 / 星星 / 每日目標 / 鎖定）、練習統計。</p>
+      <div class="goal">驗收：孩子可在孩童模式下獨立完成 10 句練習。</div>
+    </div>
+  </div>
+  <p>分期邏輯：第一版不碰 AI 與錄音，技術風險最低，卻已涵蓋跟讀最核心的體驗；後兩版在穩定骨架上逐步加功能。</p>
+</section>
+
+<section class="chap" id="ax">
+  <div class="chaphead">
+    <div class="minibar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+    <div class="chapnum">附錄</div>
+    <h2>預設參數與資料儲存</h2>
+  </div>
+  <h3>附錄 A：預設參數</h3>
+  <table>
+    <tr><th>參數</th><th>預設</th><th>可調範圍</th></tr>
+    <tr><td>留白倍數</td><td>1.5×</td><td>1.2–2.5</td></tr>
+    <tr><td>播放速度</td><td>1.0×</td><td>0.5–1.0（影子跟讀建議 0.6–0.9）</td></tr>
+    <tr><td>每句連播次數</td><td>1</td><td>1–3</td></tr>
+    <tr><td>單句循環次數</td><td>3</td><td>1–10 / 無限</td></tr>
+    <tr><td>每日目標</td><td>10 句</td><td>5–30</td></tr>
+    <tr><td>休息提醒</td><td>20 分鐘</td><td>10–40 / 關閉</td></tr>
+    <tr><td>句首尾緩衝</td><td>0.25 秒</td><td>0–0.5</td></tr>
+  </table>
+  <h3>附錄 B：資料儲存草案</h3>
+<pre>settings.json            全域設定（快捷鍵映射、預設參數）
+cache/&lt;影片雜湊&gt;.srt      whisper 轉寫快取
+data.sqlite
+ ├ videos    (id, path, last_position, speed, mode, subtitle_mode)
+ ├ sentences (video_id, idx, start_ms, end_ms, text_en, text_zh, practiced, starred)
+ └ sessions  (date, sentence_count, star_count)</pre>
+</section>
+
+<footer>
+  交接備註：建議從第一版動工——不含 AI 與錄音，完成後即可每日使用；介面示意以圖一、圖二為準，細節參數見附錄 A。
+</footer>
+
+</div>
+</body>
+</html>
