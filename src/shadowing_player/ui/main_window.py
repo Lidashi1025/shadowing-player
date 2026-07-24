@@ -4,10 +4,10 @@ import logging
 import os
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
-from PySide6.QtCore import QMimeData, QThread, QTimer, Qt, QUrl
+from PySide6.QtCore import QMimeData, QSignalBlocker, QThread, QTimer, Qt, QUrl
 from PySide6.QtGui import QCloseEvent, QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -135,6 +135,7 @@ class MainWindow(QMainWindow):
         self._teardown_complete = False
         self._review_in_progress = False
         self._review_return_video: Path | None = None
+        self._review_return_mode: PlaybackMode | None = None
 
         root = QWidget(self)
         root.setObjectName("appRoot")
@@ -409,6 +410,7 @@ class MainWindow(QMainWindow):
         self.backend.duration_changed.connect(self._duration_changed)
         self.backend.error.connect(self._show_error)
         self.controller.current_changed.connect(self._current_sentence_changed)
+        self.controller.mode_changed.connect(self._controller_mode_changed)
         self.controller.prompt_changed.connect(self.prompt_label.setText)
         self.controller.completed.connect(lambda: self.prompt_label.setText(strings.PRACTICE_COMPLETED))
         self.review_controller.warning.connect(self.status_label.setText)
@@ -472,7 +474,7 @@ class MainWindow(QMainWindow):
             action()
 
     def _refresh_action_dock(self) -> None:
-        self.action_dock.set_mode(self.current_mode)
+        self.action_dock.set_mode(self.controller.mode)
         self.action_dock.set_subtitle_mode(
             str(self.subtitle_mode_combo.currentData())
         )
@@ -482,6 +484,13 @@ class MainWindow(QMainWindow):
             enabled=sentence is not None,
         )
         self.action_dock.set_fullscreen(self.isFullScreen())
+        has_sentence = sentence is not None
+        for button in (
+            self.previous_button,
+            self.repeat_button,
+            self.next_button,
+        ):
+            button.setEnabled(has_sentence)
 
     def _choose_video(self) -> None:
         path, _selected_filter = QFileDialog.getOpenFileName(
@@ -795,8 +804,25 @@ class MainWindow(QMainWindow):
         self._refresh_action_dock()
 
     def _toggle_current_star(self) -> None:
-        if self.controller.current_index >= 0:
+        sentence = self.controller.current_sentence
+        if sentence is None:
+            return
+        if not self._review_in_progress:
             self.sentence_model.toggle_star(self.controller.current_index)
+            return
+        updated = replace(sentence, starred=not sentence.starred)
+        self._sentence_repository.set_starred(updated.id, updated.starred)
+        self.controller.sentences[self.controller.current_index] = updated
+        review_index = self.review_controller.index
+        if 0 <= review_index < len(self.review_controller.items):
+            item = self.review_controller.items[review_index]
+            self.review_controller.items[review_index] = replace(
+                item, sentence=updated
+            )
+        self.status_label.setText(
+            "已收藏" if updated.starred else "已取消收藏"
+        )
+        self._refresh_action_dock()
 
     def _merge_selected(self) -> None:
         rows = sorted(
@@ -851,6 +877,7 @@ class MainWindow(QMainWindow):
             return
         self._save_current_progress()
         self._review_return_video = self._current_video
+        self._review_return_mode = self.current_mode
         self._review_in_progress = True
         self.status_label.setText(f"开始复习 {len(items)} 句")
         self.review_controller.start(items)
@@ -862,11 +889,15 @@ class MainWindow(QMainWindow):
     def _review_completed(self) -> None:
         self.status_label.setText(strings.PRACTICE_COMPLETED)
         return_video = self._review_return_video
+        return_mode = self._review_return_mode
         self._review_in_progress = False
         self._review_return_video = None
+        self._review_return_mode = None
         if return_video is not None and return_video.is_file():
             self._current_video = None
             self.open_video(return_video)
+        elif return_mode is not None:
+            self.controller.set_mode(return_mode)
 
     def _start_transcription(
         self,
@@ -1062,9 +1093,14 @@ class MainWindow(QMainWindow):
 
     def _change_mode(self, _index: int) -> None:
         self.controller.set_mode(self.current_mode)
-        self._refresh_action_dock()
         if self.play_button.isEnabled():
             self.controller.play_current()
+
+    def _controller_mode_changed(self, mode: PlaybackMode) -> None:
+        blocker = QSignalBlocker(self.mode_combo)
+        self._set_combo_data(self.mode_combo, mode)
+        del blocker
+        self._refresh_action_dock()
 
     def _update_practice_config(self, *_args) -> None:
         self.controller.config.plays_per_sentence = int(self.plays_combo.currentData())
@@ -1166,7 +1202,7 @@ class MainWindow(QMainWindow):
     def _current_settings(self) -> AppSettings:
         return AppSettings(
             speed=float(self.speed_combo.currentData()),
-            mode=self.current_mode,
+            mode=self._review_return_mode or self.current_mode,
             blank_multiplier=float(self.blank_combo.currentData()),
             plays_per_sentence=int(self.plays_combo.currentData()),
             loop_count=self.loop_combo.currentData(),

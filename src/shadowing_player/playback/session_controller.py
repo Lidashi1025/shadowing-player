@@ -98,6 +98,7 @@ class QtCountdownTimer:
 
 class SessionController(QObject):
     current_changed = Signal(int, object)
+    mode_changed = Signal(object)
     prompt_changed = Signal(str)
     phase_changed = Signal(str)
     completed = Signal()
@@ -140,6 +141,7 @@ class SessionController(QObject):
     def set_mode(self, mode: PlaybackMode) -> None:
         self._invalidate_timer()
         self.mode = mode
+        self.mode_changed.emit(mode)
         self._iteration = 0
         self._set_phase(SessionPhase.PAUSED)
         self.prompt_changed.emit("")

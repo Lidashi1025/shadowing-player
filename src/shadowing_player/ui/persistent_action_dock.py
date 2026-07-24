@@ -124,7 +124,7 @@ class PersistentActionDock(QFrame):
             self.loop_combo.addItem(f"循环 {count} 次", count)
         self.loop_combo.addItem("循环无限", None)
         self.loop_combo.setCurrentIndex(2)
-        self.loop_combo.setFixedWidth(104)
+        self.loop_combo.setFixedWidth(108)
 
         self.auto_advance_check = QCheckBox("自动下一句", settings_frame)
         self.auto_advance_check.setChecked(True)

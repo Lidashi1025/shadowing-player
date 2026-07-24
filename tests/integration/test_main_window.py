@@ -19,6 +19,7 @@ from shadowing_player.ui import strings
 from shadowing_player.ui.sentence_progress_bar import SentenceProgressBar
 from shadowing_player.subtitles.models import Sentence, SubtitleSource
 from shadowing_player.playback.session_controller import PlaybackMode
+from shadowing_player.review.review_controller import ReviewItem
 from shadowing_player.shortcut_catalog import default_shortcuts
 from shadowing_player.storage.progress_store import RecentVideo, VideoProgress
 from shadowing_player.transcription.service import TranscriptionCancelled
@@ -280,6 +281,68 @@ def test_persistent_action_states_follow_external_changes(
     assert window.play_button.text() == "暂停"
 
 
+def test_review_mode_and_favorite_buttons_follow_the_review_sentence(
+    qtbot, tmp_path: Path
+) -> None:
+    movie = tmp_path / "review.mp4"
+    movie.write_bytes(b"video")
+    repository = FakeSentenceRepository()
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=FakeProgressStore(),
+        sentence_repository=repository,
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+    window._apply_sentences(
+        [Sentence(0, 1_000, 2_000, "Original", id=10)]
+    )
+    window.mode_combo.setCurrentIndex(
+        window.mode_combo.findData(PlaybackMode.SINGLE_LOOP)
+    )
+    review_sentence = Sentence(
+        8, 3_000, 4_000, "Review", starred=True, id=20
+    )
+    window._review_in_progress = True
+    window.review_controller._current_video = movie.resolve()
+
+    window.review_controller.start([ReviewItem(movie, review_sentence)])
+
+    assert window.controller.mode is PlaybackMode.SENTENCE_PRACTICE
+    assert window.mode_combo.currentData() == PlaybackMode.SENTENCE_PRACTICE
+    assert window.mode_action_button.text() == "模式 · 跟读"
+    assert not window.single_loop_button.isChecked()
+    assert window.star_button.isChecked()
+
+    qtbot.mouseClick(window.star_button, Qt.MouseButton.LeftButton)
+
+    assert repository.starred[-1] == (20, False)
+    assert window.controller.current_sentence.starred is False
+    assert window.sentence_model.sentences[0].id == 10
+    assert window.sentence_model.sentences[0].starred is False
+
+
+def test_sentence_transport_buttons_are_disabled_without_sentences(
+    qtbot, tmp_path: Path
+) -> None:
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=FakeProgressStore(),
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+
+    assert not window.previous_button.isEnabled()
+    assert not window.repeat_button.isEnabled()
+    assert not window.next_button.isEnabled()
+
+    window._apply_sentences([Sentence(0, 1_000, 2_000, "Hello")])
+
+    assert window.previous_button.isEnabled()
+    assert window.repeat_button.isEnabled()
+    assert window.next_button.isEnabled()
+
+
 def test_auto_advance_label_has_enough_width_and_is_not_clipped(
     qtbot, tmp_path: Path
 ) -> None:
@@ -534,15 +597,20 @@ def test_compact_combo_boxes_show_their_complete_current_text(
         window.blank_combo,
         window.loop_combo,
     ):
-        option = QStyleOptionComboBox()
-        combo.initStyleOption(option)
-        edit_rect = combo.style().subControlRect(
-            QStyle.ComplexControl.CC_ComboBox,
-            option,
-            QStyle.SubControl.SC_ComboBoxEditField,
-            combo,
-        )
-        assert combo.fontMetrics().horizontalAdvance(combo.currentText()) <= edit_rect.width()
+        for index in range(combo.count()):
+            combo.setCurrentIndex(index)
+            option = QStyleOptionComboBox()
+            combo.initStyleOption(option)
+            edit_rect = combo.style().subControlRect(
+                QStyle.ComplexControl.CC_ComboBox,
+                option,
+                QStyle.SubControl.SC_ComboBoxEditField,
+                combo,
+            )
+            assert (
+                combo.fontMetrics().horizontalAdvance(combo.currentText())
+                <= edit_rect.width()
+            )
 
 
 def test_bilingual_sentence_rows_expand_to_show_both_lines(
