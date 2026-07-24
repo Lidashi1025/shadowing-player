@@ -36,6 +36,7 @@ from shadowing_player.runtime.windows_shortcut import (
     ShortcutCreationError,
     create_desktop_shortcut,
 )
+from shadowing_player.shortcut_catalog import shortcut_definitions
 from shadowing_player.subtitles.models import Sentence, SubtitleSource
 from shadowing_player.subtitles.subtitle_service import SubtitleError, SubtitleService
 from shadowing_player.storage.progress_store import ProgressStore, VideoProgress
@@ -447,6 +448,13 @@ class MainWindow(QMainWindow):
             shortcut.activated.connect(slot)
             self._shortcuts.append(shortcut)
         self.action_dock.set_shortcut_hints(self._settings.shortcuts)
+        definitions = {item.name: item for item in shortcut_definitions()}
+        for name in ("open_video", "recent", "review"):
+            sequence = self._settings.shortcuts.get(name, "")
+            description = definitions[name].description
+            self.permanent_action_controls[name].setToolTip(
+                f"{description}（{sequence}）" if sequence else description
+            )
 
     def _handle_dock_action(self, name: str) -> None:
         actions = {

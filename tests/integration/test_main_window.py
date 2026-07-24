@@ -225,6 +225,10 @@ def test_every_shortcut_has_a_permanent_visible_control(
         window.centralWidget().isAncestorOf(control)
         for control in window.permanent_action_controls.values()
     )
+    assert all(
+        shortcut in window.permanent_action_controls[name].toolTip()
+        for name, shortcut in default_shortcuts().items()
+    )
 
 
 def test_persistent_action_buttons_call_existing_behaviors(
