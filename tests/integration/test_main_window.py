@@ -339,11 +339,13 @@ def test_clicking_loaded_video_surface_toggles_playback(
 
     qtbot.mouseClick(window.video_widget, Qt.MouseButton.LeftButton)
 
+    qtbot.waitUntil(lambda: window.backend.play_count == 1, timeout=1_000)
     assert window.backend.play_count == 1
     assert window.controller.phase is SessionPhase.PLAYING
 
     qtbot.mouseClick(window.video_widget, Qt.MouseButton.LeftButton)
 
+    qtbot.waitUntil(lambda: window.backend.pause_count == 1, timeout=1_000)
     assert window.backend.pause_count == 1
     assert window.controller.phase is SessionPhase.PAUSED
 
@@ -362,6 +364,24 @@ def test_clicking_video_surface_without_loaded_video_does_nothing(
 
     assert window.backend.play_count == 0
     assert window.backend.pause_count == 0
+
+
+def test_double_clicking_video_surface_toggles_fullscreen_and_window(
+    qtbot, tmp_path: Path
+) -> None:
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=FakeProgressStore(),
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+    window.show()
+
+    qtbot.mouseDClick(window.video_widget, Qt.MouseButton.LeftButton)
+    qtbot.waitUntil(window.isFullScreen, timeout=1_000)
+
+    qtbot.mouseDClick(window.video_widget, Qt.MouseButton.LeftButton)
+    qtbot.waitUntil(lambda: not window.isFullScreen(), timeout=1_000)
 
 
 def test_review_mode_and_favorite_buttons_follow_the_review_sentence(

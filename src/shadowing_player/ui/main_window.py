@@ -394,6 +394,7 @@ class MainWindow(QMainWindow):
         self.recent_menu.aboutToShow.connect(self._refresh_recent_menu)
         self.favorites_menu.aboutToShow.connect(self._refresh_favorites_menu)
         self.video_widget.clicked.connect(self._toggle_if_available)
+        self.video_widget.double_clicked.connect(self._toggle_fullscreen)
         self.play_button.clicked.connect(self._toggle_play)
         self.previous_button.clicked.connect(lambda: self.controller.previous_sentence(True))
         self.repeat_button.clicked.connect(self.controller.repeat_current)
