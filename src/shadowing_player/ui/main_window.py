@@ -48,6 +48,7 @@ from shadowing_player.transcription.service import TranscriptionService
 from shadowing_player.transcription.worker import CancellationToken, TranscriptionWorker
 from shadowing_player.review.review_controller import ReviewController
 from shadowing_player.ui import strings
+from shadowing_player.ui.clickable_video_widget import ClickableVideoWidget
 from shadowing_player.ui.persistent_action_dock import PersistentActionDock
 from shadowing_player.ui.sentence_table_model import SentenceTableModel
 from shadowing_player.ui.sentence_item_delegate import SentenceItemDelegate
@@ -206,8 +207,9 @@ class MainWindow(QMainWindow):
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(0)
-        self.video_widget = QWidget(left)
+        self.video_widget = ClickableVideoWidget(left)
         self.video_widget.setObjectName("videoWidget")
+        self.video_widget.setToolTip("单击播放或暂停")
         self.video_widget.setAttribute(Qt.WidgetAttribute.WA_DontCreateNativeAncestors)
         self.video_widget.setAttribute(Qt.WidgetAttribute.WA_NativeWindow)
         self.video_widget.setMinimumSize(480, 270)
@@ -391,6 +393,7 @@ class MainWindow(QMainWindow):
         self.open_button.clicked.connect(self._choose_video)
         self.recent_menu.aboutToShow.connect(self._refresh_recent_menu)
         self.favorites_menu.aboutToShow.connect(self._refresh_favorites_menu)
+        self.video_widget.clicked.connect(self._toggle_if_available)
         self.play_button.clicked.connect(self._toggle_play)
         self.previous_button.clicked.connect(lambda: self.controller.previous_sentence(True))
         self.repeat_button.clicked.connect(self.controller.repeat_current)

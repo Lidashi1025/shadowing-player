@@ -325,6 +325,45 @@ def test_play_button_explains_running_and_paused_blank_time(
     assert window.play_button.text() == "继续留白"
 
 
+def test_clicking_loaded_video_surface_toggles_playback(
+    qtbot, tmp_path: Path
+) -> None:
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=FakeProgressStore(),
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+    window.play_button.setEnabled(True)
+    window.controller._set_phase(SessionPhase.PAUSED)
+
+    qtbot.mouseClick(window.video_widget, Qt.MouseButton.LeftButton)
+
+    assert window.backend.play_count == 1
+    assert window.controller.phase is SessionPhase.PLAYING
+
+    qtbot.mouseClick(window.video_widget, Qt.MouseButton.LeftButton)
+
+    assert window.backend.pause_count == 1
+    assert window.controller.phase is SessionPhase.PAUSED
+
+
+def test_clicking_video_surface_without_loaded_video_does_nothing(
+    qtbot, tmp_path: Path
+) -> None:
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=FakeProgressStore(),
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+
+    qtbot.mouseClick(window.video_widget, Qt.MouseButton.LeftButton)
+
+    assert window.backend.play_count == 0
+    assert window.backend.pause_count == 0
+
+
 def test_review_mode_and_favorite_buttons_follow_the_review_sentence(
     qtbot, tmp_path: Path
 ) -> None:
