@@ -41,6 +41,8 @@ python -m venv .venv
 - 影子跟读：以 `0.50×–1.00×` 连续播放；mpv 自动插入 `scaletempo2` 保持音调。
 - 点击句子列表或分段进度条可精确跳句。
 - 自动记忆每部影片的位置、速度、模式与字幕来源；重新打开时恢复但保持暂停。
+- 顶部“收藏夹”可收藏当前影片并快速重新打开；收藏影片会持续记录最新播放进度。
+- 启动时自动恢复最后一部仍存在的影片与播放进度，并保持暂停等待播放。
 - 无字幕影片以 faster-whisper `small`、CPU、int8、固定英文进行后台转写；底部显示进度、预计时间并可取消，播放控制不会被锁住。
 - 转写结果保存在程序目录的 `cache\transcriptions\<影片快速哈希>.srt`，再次打开直接读取；旧版 `%LOCALAPPDATA%` 快取会自动迁移。
 - 中文只从现有外部或内嵌字幕取得，以时间重叠对齐；可切换“英文／双语／隐藏”。
@@ -52,7 +54,7 @@ python -m venv .venv
 - 底部双层常驻功能坞把全部快捷键功能做成可见按钮：第一层是播放与状态动作，第二层是练习参数。播放使用实心蓝，字幕／循环等激活状态使用蓝色，收藏状态使用金色。
 - “工具”菜单可创建桌面快捷方式、打开数据目录并编辑全部快捷键；保存前会检查按键冲突。
 
-全局设置保存在 `%LOCALAPPDATA%\ShadowingPlayer\settings.json`，播放进度保存在 `%LOCALAPPDATA%\ShadowingPlayer\data.sqlite`。
+全局设置保存在 `%LOCALAPPDATA%\ShadowingPlayer\settings.json`，播放进度与影片收藏保存在 `%LOCALAPPDATA%\ShadowingPlayer\data.sqlite`。
 
 源码版的语音模型自动下载到：
 
