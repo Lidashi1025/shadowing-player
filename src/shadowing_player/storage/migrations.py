@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 
 def _table_exists(connection: sqlite3.Connection, name: str) -> bool:
@@ -48,6 +48,8 @@ def _create_latest_tables(connection: sqlite3.Connection) -> None:
             content_hash TEXT,
             sentence_source_key TEXT,
             sentences_edited INTEGER NOT NULL DEFAULT 0,
+            is_favorite INTEGER NOT NULL DEFAULT 0,
+            favorited_at TEXT,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
@@ -70,6 +72,12 @@ def _create_latest_tables(connection: sqlite3.Connection) -> None:
     )
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_sentences_starred ON sentences(starred, starred_at)"
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_videos_favorite
+        ON videos(is_favorite, favorited_at)
+        """
     )
 
 
@@ -106,6 +114,8 @@ def migrate_database(connection: sqlite3.Connection, database_path: Path) -> Non
                     content_hash TEXT,
                     sentence_source_key TEXT,
                     sentences_edited INTEGER NOT NULL DEFAULT 0,
+                    is_favorite INTEGER NOT NULL DEFAULT 0,
+                    favorited_at TEXT,
                     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
                 """
@@ -128,6 +138,19 @@ def migrate_database(connection: sqlite3.Connection, database_path: Path) -> Non
                 raise RuntimeError("数据库迁移校验失败：影片进度数量不一致")
             connection.execute("DROP TABLE videos")
             connection.execute("ALTER TABLE videos_new RENAME TO videos")
+        if _table_exists(connection, "videos"):
+            video_columns = _column_names(connection, "videos")
+            if "is_favorite" not in video_columns:
+                connection.execute(
+                    """
+                    ALTER TABLE videos
+                    ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0
+                    """
+                )
+            if "favorited_at" not in video_columns:
+                connection.execute(
+                    "ALTER TABLE videos ADD COLUMN favorited_at TEXT"
+                )
         _create_latest_tables(connection)
         connection.execute(f"PRAGMA user_version={CURRENT_SCHEMA_VERSION}")
         connection.commit()
