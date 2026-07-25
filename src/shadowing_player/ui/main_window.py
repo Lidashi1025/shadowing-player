@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sqlite3
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -155,6 +156,10 @@ class MainWindow(QMainWindow):
         self.recent_button.setObjectName("recentButton")
         self.recent_menu = QMenu(self.recent_button)
         self.recent_button.setMenu(self.recent_menu)
+        self.favorites_button = QPushButton(strings.FAVORITES, top_bar)
+        self.favorites_button.setObjectName("favoritesButton")
+        self.favorites_menu = QMenu(self.favorites_button)
+        self.favorites_button.setMenu(self.favorites_menu)
         self.file_label = QLabel(strings.READY, top_bar)
         self.file_label.setObjectName("fileLabel")
         self.file_label.setMinimumWidth(160)
@@ -183,6 +188,7 @@ class MainWindow(QMainWindow):
         self.tools_button.setMenu(self.tools_menu)
         top.addWidget(self.open_button)
         top.addWidget(self.recent_button)
+        top.addWidget(self.favorites_button)
         top.addWidget(self.file_label, 1)
         top.addWidget(subtitle_source_label)
         top.addWidget(self.subtitle_combo)
@@ -381,6 +387,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self) -> None:
         self.open_button.clicked.connect(self._choose_video)
         self.recent_menu.aboutToShow.connect(self._refresh_recent_menu)
+        self.favorites_menu.aboutToShow.connect(self._refresh_favorites_menu)
         self.play_button.clicked.connect(self._toggle_play)
         self.previous_button.clicked.connect(lambda: self.controller.previous_sentence(True))
         self.repeat_button.clicked.connect(self.controller.repeat_current)
@@ -523,6 +530,84 @@ class MainWindow(QMainWindow):
         self.recent_menu.popup(
             self.recent_button.mapToGlobal(self.recent_button.rect().bottomLeft())
         )
+
+    def _refresh_favorites_menu(self) -> None:
+        self.favorites_menu.clear()
+        current = self._current_video
+        try:
+            if (
+                current is None
+                or not current.is_file()
+                or current.suffix.lower() not in {".mkv", ".mp4"}
+            ):
+                toggle_action = self.favorites_menu.addAction(
+                    strings.NO_VIDEO_TO_FAVORITE
+                )
+                toggle_action.setEnabled(False)
+            else:
+                is_favorite = self._progress_store.is_favorite(current)
+                toggle_action = self.favorites_menu.addAction(
+                    strings.REMOVE_VIDEO_FAVORITE
+                    if is_favorite
+                    else strings.ADD_VIDEO_FAVORITE
+                )
+                toggle_action.triggered.connect(
+                    self._toggle_current_video_favorite
+                )
+
+            self.favorites_menu.addSeparator()
+            available = [
+                item
+                for item in self._progress_store.list_favorites(limit=100)
+                if item.path.is_file()
+                and item.path.suffix.lower() in {".mkv", ".mp4"}
+            ]
+        except sqlite3.Error as exc:
+            self.favorites_menu.clear()
+            error_action = self.favorites_menu.addAction(
+                strings.VIDEO_FAVORITE_ERROR.format(message=exc)
+            )
+            error_action.setEnabled(False)
+            self.status_label.setText(error_action.text())
+            return
+        if not available:
+            empty_action = self.favorites_menu.addAction(
+                strings.NO_VIDEO_FAVORITES
+            )
+            empty_action.setEnabled(False)
+            return
+        for item in available:
+            action = self.favorites_menu.addAction(item.path.name)
+            action.setToolTip(str(item.path))
+            action.triggered.connect(
+                lambda _checked=False, path=item.path: self.open_video(path)
+            )
+
+    def _toggle_current_video_favorite(self) -> None:
+        video = self._current_video
+        if (
+            video is None
+            or not video.is_file()
+            or video.suffix.lower() not in {".mkv", ".mp4"}
+        ):
+            return
+        try:
+            self._save_current_progress()
+            favorite = not self._progress_store.is_favorite(video)
+            self._progress_store.set_favorite(video, favorite)
+        except (OSError, sqlite3.Error) as exc:
+            self.status_label.setText(
+                strings.VIDEO_FAVORITE_ERROR.format(message=exc)
+            )
+            return
+        self.status_label.setText(
+            (
+                strings.VIDEO_FAVORITED
+                if favorite
+                else strings.VIDEO_UNFAVORITED
+            ).format(name=video.name)
+        )
+        self._refresh_favorites_menu()
 
     def _create_desktop_shortcut(self) -> None:
         try:

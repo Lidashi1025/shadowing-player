@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from dataclasses import replace
+import sqlite3
 import time
 
 from PySide6.QtCore import QMimeData, QObject, QPoint, QPointF, QUrl, Signal, Qt
@@ -21,7 +22,11 @@ from shadowing_player.subtitles.models import Sentence, SubtitleSource
 from shadowing_player.playback.session_controller import PlaybackMode, SessionPhase
 from shadowing_player.review.review_controller import ReviewItem
 from shadowing_player.shortcut_catalog import default_shortcuts
-from shadowing_player.storage.progress_store import RecentVideo, VideoProgress
+from shadowing_player.storage.progress_store import (
+    FavoriteVideo,
+    RecentVideo,
+    VideoProgress,
+)
 from shadowing_player.transcription.service import TranscriptionCancelled
 
 
@@ -97,6 +102,10 @@ class FakeProgressStore:
         self.saved: list[tuple] = []
         self.opened: list[Path] = []
         self.recent: list[RecentVideo] = []
+        self.favorites: list[FavoriteVideo] = []
+        self.favorite_paths: set[Path] = set()
+        self.favorite_changes: list[tuple[Path, bool]] = []
+        self.resume_candidates: list[RecentVideo] = []
         self.closed = False
 
     def load(self, path: Path) -> VideoProgress | None:
@@ -110,6 +119,23 @@ class FakeProgressStore:
 
     def list_recent(self, limit: int = 8) -> list[RecentVideo]:
         return self.recent[:limit]
+
+    def set_favorite(self, path: Path, favorite: bool) -> None:
+        resolved = path.resolve()
+        self.favorite_changes.append((resolved, favorite))
+        if favorite:
+            self.favorite_paths.add(resolved)
+        else:
+            self.favorite_paths.discard(resolved)
+
+    def is_favorite(self, path: Path) -> bool:
+        return path.resolve() in self.favorite_paths
+
+    def list_favorites(self, limit: int = 100) -> list[FavoriteVideo]:
+        return self.favorites[:limit]
+
+    def list_resume_candidates(self, limit: int = 100) -> list[RecentVideo]:
+        return self.resume_candidates[:limit]
 
     def close(self) -> None:
         self.closed = True
@@ -543,6 +569,108 @@ def test_recent_menu_lists_existing_videos_and_opens_selection(
     assert actions[0].toolTip() == str(first)
     actions[1].trigger()
     assert opened == [second]
+
+
+def test_favorites_menu_toggles_current_video_after_saving_progress(
+    qtbot, tmp_path: Path
+) -> None:
+    movie = tmp_path / "episode.mp4"
+    movie.write_bytes(b"video")
+    store = FakeProgressStore()
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=store,
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+    window._current_video = movie.resolve()
+    window.backend.position_ms = 4_200
+
+    window._refresh_favorites_menu()
+    window.favorites_menu.actions()[0].trigger()
+
+    assert store.saved[-1][1]["position_ms"] == 4_200
+    assert store.favorite_changes[-1] == (movie.resolve(), True)
+    window._refresh_favorites_menu()
+    assert (
+        window.favorites_menu.actions()[0].text()
+        == strings.REMOVE_VIDEO_FAVORITE
+    )
+    window.favorites_menu.actions()[0].trigger()
+    assert store.favorite_changes[-1] == (movie.resolve(), False)
+
+
+def test_favorites_menu_lists_only_existing_supported_videos(
+    qtbot, tmp_path: Path
+) -> None:
+    first = tmp_path / "first.mp4"
+    unsupported = tmp_path / "notes.txt"
+    missing = tmp_path / "missing.mkv"
+    first.write_bytes(b"video")
+    unsupported.write_text("notes", encoding="utf-8")
+    store = FakeProgressStore()
+    store.favorites = [
+        FavoriteVideo(first, 1_000, "2026-07-25 10:00:03"),
+        FavoriteVideo(missing, 2_000, "2026-07-25 10:00:02"),
+        FavoriteVideo(unsupported, 3_000, "2026-07-25 10:00:01"),
+    ]
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=store,
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+    opened: list[Path] = []
+    window.open_video = opened.append
+
+    window._refresh_favorites_menu()
+    actions = [
+        action
+        for action in window.favorites_menu.actions()
+        if action.isEnabled() and not action.isSeparator()
+    ]
+
+    assert [action.text() for action in actions] == [first.name]
+    assert actions[0].toolTip() == str(first)
+    actions[0].trigger()
+    assert opened == [first]
+
+
+def test_favorites_menu_disables_toggle_without_current_video(
+    qtbot, tmp_path: Path
+) -> None:
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=FakeProgressStore(),
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+
+    window._refresh_favorites_menu()
+
+    first_action = window.favorites_menu.actions()[0]
+    assert first_action.text() == strings.NO_VIDEO_TO_FAVORITE
+    assert first_action.isEnabled() is False
+
+
+def test_favorites_menu_reports_database_read_failure(
+    qtbot, tmp_path: Path
+) -> None:
+    class BrokenFavoritesStore(FakeProgressStore):
+        def list_favorites(self, limit: int = 100) -> list[FavoriteVideo]:
+            raise sqlite3.OperationalError("database unavailable")
+
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=BrokenFavoritesStore(),
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+
+    window._refresh_favorites_menu()
+
+    assert "database unavailable" in window.status_label.text()
+    assert window.favorites_menu.actions()[0].isEnabled() is False
 
 
 def test_persistent_action_rows_fit_the_980_pixel_minimum_width(
