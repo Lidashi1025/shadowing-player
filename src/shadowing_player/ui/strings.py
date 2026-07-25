@@ -10,6 +10,7 @@ NO_VIDEO_FAVORITES = "收藏夹是空的"
 VIDEO_FAVORITED = "已收藏影片：{name}"
 VIDEO_UNFAVORITED = "已取消收藏影片：{name}"
 VIDEO_FAVORITE_ERROR = "更新影片收藏失败：{message}"
+STARTUP_RESTORE_ERROR = "无法恢复上次播放：{message}"
 OPEN_MKV = OPEN_VIDEO
 PLAY = "播放"
 PAUSE = "暂停"

@@ -1001,6 +1001,71 @@ def test_window_restores_progress_paused_and_saves_on_close(qtbot, monkeypatch, 
     assert store.closed is True
 
 
+def test_startup_restores_last_existing_video_and_remains_paused(
+    qtbot, tmp_path: Path
+) -> None:
+    missing = tmp_path / "missing.mp4"
+    movie = tmp_path / "episode.mp4"
+    movie.write_bytes(b"video")
+    subtitle = tmp_path / "episode.srt"
+    subtitle.touch()
+    source = SubtitleSource.external(subtitle)
+    store = FakeProgressStore(
+        VideoProgress(
+            3_200,
+            0.75,
+            PlaybackMode.SHADOWING,
+            source.identifier,
+        )
+    )
+    store.resume_candidates = [
+        RecentVideo(missing, 8_000, "2026-07-25 10:00:02"),
+        RecentVideo(movie, 3_200, "2026-07-25 10:00:01"),
+    ]
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        subtitle_service=FakeSubtitleService(
+            source,
+            [Sentence(0, 1_000, 2_000, "Hello")],
+        ),
+        progress_store=store,
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+
+    qtbot.waitUntil(lambda: bool(window.backend.opened), timeout=1_000)
+
+    assert window.backend.opened[-1] == str(movie.resolve())
+    assert window.backend.seeks[-1] == 3_200
+    assert window.backend.is_paused is True
+    assert window._current_video == movie.resolve()
+
+
+def test_startup_with_no_valid_video_stays_on_empty_screen(
+    qtbot, tmp_path: Path
+) -> None:
+    store = FakeProgressStore()
+    store.resume_candidates = [
+        RecentVideo(
+            tmp_path / "missing.mp4",
+            3_200,
+            "2026-07-25 10:00:01",
+        )
+    ]
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=store,
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+
+    qtbot.wait(20)
+
+    assert window.backend.opened == []
+    assert window._current_video is None
+    assert window.file_label.text() == strings.READY
+
+
 def test_window_installs_all_visible_second_version_shortcuts(qtbot, tmp_path: Path) -> None:
     window = MainWindow(
         backend_factory=FakeBackend,

@@ -379,6 +379,7 @@ class MainWindow(QMainWindow):
         self._refresh_action_dock()
         if settings_warning:
             self.status_label.setText(settings_warning)
+        QTimer.singleShot(0, self._restore_last_session)
 
     @property
     def current_mode(self) -> PlaybackMode:
@@ -498,6 +499,30 @@ class MainWindow(QMainWindow):
             self.next_button,
         ):
             button.setEnabled(has_sentence)
+
+    def _restore_last_session(self) -> None:
+        if self._current_video is not None or self._close_pending:
+            return
+        try:
+            candidates = self._progress_store.list_resume_candidates(limit=100)
+            for item in candidates:
+                path = item.path
+                if (
+                    not path.is_file()
+                    or path.suffix.lower() not in {".mkv", ".mp4"}
+                ):
+                    continue
+                # A changed file has no valid saved progress. Skipping it keeps
+                # startup silent because open_video() plays brand-new files.
+                if self._progress_store.load(path) is None:
+                    continue
+                self.open_video(path)
+                return
+        except Exception as exc:
+            LOGGER.exception("恢复上次播放失败")
+            self.status_label.setText(
+                strings.STARTUP_RESTORE_ERROR.format(message=exc)
+            )
 
     def _choose_video(self) -> None:
         path, _selected_filter = QFileDialog.getOpenFileName(
