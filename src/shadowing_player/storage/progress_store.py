@@ -25,6 +25,13 @@ class RecentVideo:
     updated_at: str
 
 
+@dataclass(frozen=True, slots=True)
+class FavoriteVideo:
+    path: Path
+    position_ms: int
+    favorited_at: str
+
+
 def _fingerprint(video_path: Path) -> str:
     stat = video_path.stat()
     value = f"{video_path.resolve()}|{stat.st_size}|{stat.st_mtime_ns}"
@@ -134,6 +141,67 @@ class ProgressStore:
             )
             for row in rows
         ]
+
+    def set_favorite(self, video_path: Path, favorite: bool) -> None:
+        video = video_path.resolve()
+        if favorite:
+            self._connection.execute(
+                """
+                INSERT INTO videos(
+                    path, fingerprint, is_favorite, favorited_at
+                )
+                VALUES (
+                    ?, ?, 1, STRFTIME('%Y-%m-%d %H:%M:%f', 'now')
+                )
+                ON CONFLICT(path) DO UPDATE SET
+                    is_favorite=1,
+                    favorited_at=STRFTIME('%Y-%m-%d %H:%M:%f', 'now')
+                """,
+                (str(video), _fingerprint(video)),
+            )
+        else:
+            self._connection.execute(
+                """
+                UPDATE videos
+                SET is_favorite=0, favorited_at=NULL
+                WHERE path=?
+                """,
+                (str(video),),
+            )
+        self._connection.commit()
+
+    def is_favorite(self, video_path: Path) -> bool:
+        row = self._connection.execute(
+            "SELECT is_favorite FROM videos WHERE path=?",
+            (str(video_path.resolve()),),
+        ).fetchone()
+        return bool(row and row[0])
+
+    def list_favorites(self, limit: int = 100) -> list[FavoriteVideo]:
+        safe_limit = max(0, min(int(limit), 100))
+        if safe_limit == 0:
+            return []
+        rows = self._connection.execute(
+            """
+            SELECT path, last_position_ms, favorited_at
+            FROM videos
+            WHERE is_favorite=1
+            ORDER BY favorited_at DESC, id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+        return [
+            FavoriteVideo(
+                path=Path(str(row[0])),
+                position_ms=int(row[1]),
+                favorited_at=str(row[2]),
+            )
+            for row in rows
+        ]
+
+    def list_resume_candidates(self, limit: int = 100) -> list[RecentVideo]:
+        return self.list_recent(limit=limit)
 
     def close(self) -> None:
         if not self._closed:

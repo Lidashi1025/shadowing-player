@@ -3,6 +3,7 @@ from pathlib import Path
 
 from shadowing_player.playback.session_controller import PlaybackMode
 from shadowing_player.storage.progress_store import (
+    FavoriteVideo,
     ProgressStore,
     RecentVideo,
     VideoProgress,
@@ -99,4 +100,74 @@ def test_recent_videos_respect_limit(tmp_path: Path) -> None:
     recent = store.list_recent(limit=2)
 
     assert len(recent) == 2
+    store.close()
+
+
+def test_favorite_is_unique_and_tracks_latest_playback_progress(
+    tmp_path: Path,
+) -> None:
+    movie = tmp_path / "episode.mp4"
+    movie.write_bytes(b"video")
+    store = ProgressStore(tmp_path / "data.sqlite")
+    store.save(movie, 1_000, 1.0, PlaybackMode.WATCH, "")
+
+    store.set_favorite(movie, True)
+    store.set_favorite(movie, True)
+    store.save(movie, 9_000, 0.75, PlaybackMode.SHADOWING, "")
+
+    favorites = store.list_favorites()
+    assert favorites == [
+        FavoriteVideo(movie.resolve(), 9_000, favorites[0].favorited_at)
+    ]
+    assert store.is_favorite(movie) is True
+    store.close()
+
+
+def test_cancel_favorite_preserves_video_progress(tmp_path: Path) -> None:
+    movie = tmp_path / "episode.mp4"
+    movie.write_bytes(b"video")
+    store = ProgressStore(tmp_path / "data.sqlite")
+    store.save(movie, 4_200, 1.0, PlaybackMode.WATCH, "")
+    store.set_favorite(movie, True)
+
+    store.set_favorite(movie, False)
+
+    assert store.is_favorite(movie) is False
+    assert store.list_favorites() == []
+    assert store.load(movie).position_ms == 4_200
+    store.close()
+
+
+def test_favorites_are_newest_first_and_respect_limit(tmp_path: Path) -> None:
+    first = tmp_path / "first.mp4"
+    second = tmp_path / "second.mkv"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+    store = ProgressStore(tmp_path / "data.sqlite")
+    store.set_favorite(first, True)
+    time.sleep(0.01)
+    store.set_favorite(second, True)
+
+    favorites = store.list_favorites(limit=1)
+
+    assert [item.path for item in favorites] == [second.resolve()]
+    store.close()
+
+
+def test_resume_candidates_reuse_recent_open_order(tmp_path: Path) -> None:
+    first = tmp_path / "first.mp4"
+    second = tmp_path / "second.mp4"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+    store = ProgressStore(tmp_path / "data.sqlite")
+    store.mark_opened(first)
+    time.sleep(0.01)
+    store.mark_opened(second)
+
+    candidates = store.list_resume_candidates()
+
+    assert [item.path for item in candidates] == [
+        second.resolve(),
+        first.resolve(),
+    ]
     store.close()
