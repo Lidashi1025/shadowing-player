@@ -40,9 +40,10 @@ def main() -> int:
         logging.getLogger(__name__).info("libmpv：%s", dll_path)
         from shadowing_player.ui.main_window import MainWindow
 
-        if _smoke_test_requested(sys.argv) and is_frozen():
+        smoke_test = _smoke_test_requested(sys.argv)
+        if smoke_test and is_frozen():
             verify_frozen_bundle(bundled_model_dir(), bundled_binary_dir())
-        window = MainWindow()
+        window = MainWindow(restore_last_session=not smoke_test)
         window.setWindowIcon(application.windowIcon())
     except Exception as exc:
         logging.getLogger(__name__).exception("播放器启动失败")
@@ -50,7 +51,7 @@ def main() -> int:
         return 1
 
     window.show()
-    if _smoke_test_requested(sys.argv):
+    if smoke_test:
         QTimer.singleShot(800, window.close)
         QTimer.singleShot(1_200, application.quit)
     return application.exec()

@@ -100,6 +100,7 @@ class MainWindow(QMainWindow):
         sentence_repository: SentenceRepository | None = None,
         transcription_service: TranscriptionService | None = None,
         settings_path: Path | None = None,
+        restore_last_session: bool = True,
     ) -> None:
         super().__init__()
         self.setWindowTitle(strings.WINDOW_TITLE)
@@ -379,7 +380,8 @@ class MainWindow(QMainWindow):
         self._refresh_action_dock()
         if settings_warning:
             self.status_label.setText(settings_warning)
-        QTimer.singleShot(0, self._restore_last_session)
+        if restore_last_session:
+            QTimer.singleShot(0, self._restore_last_session)
 
     @property
     def current_mode(self) -> PlaybackMode:

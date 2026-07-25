@@ -1066,6 +1066,31 @@ def test_startup_with_no_valid_video_stays_on_empty_screen(
     assert window.file_label.text() == strings.READY
 
 
+def test_startup_restore_can_be_disabled_for_smoke_test(
+    qtbot, tmp_path: Path
+) -> None:
+    movie = tmp_path / "episode.mp4"
+    movie.write_bytes(b"video")
+    store = FakeProgressStore(
+        VideoProgress(3_200, 1.0, PlaybackMode.WATCH, "")
+    )
+    store.resume_candidates = [
+        RecentVideo(movie, 3_200, "2026-07-25 10:00:01")
+    ]
+
+    window = MainWindow(
+        backend_factory=FakeBackend,
+        progress_store=store,
+        settings_path=tmp_path / "settings.json",
+        restore_last_session=False,
+    )
+    qtbot.addWidget(window)
+    qtbot.wait(20)
+
+    assert window.backend.opened == []
+    assert window._current_video is None
+
+
 def test_window_installs_all_visible_second_version_shortcuts(qtbot, tmp_path: Path) -> None:
     window = MainWindow(
         backend_factory=FakeBackend,
