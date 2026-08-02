@@ -20,7 +20,7 @@
 2. ~~Subtitle load pipeline off UI thread~~ (v0.4.0)
 3. ~~Recording / self-compare~~ (v0.4.0 basic WAV)
 4. Waveform compare UI / optional scoring
-5. Persist DB writes also off UI thread
+5. ~~Persist DB writes also off UI thread~~ (v0.4.1)
 6. Light practice stats (`practiced_count`)
 7. GPU/CUDA optional for ASR
 

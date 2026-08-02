@@ -41,7 +41,8 @@ def _fingerprint(video_path: Path) -> str:
 class ProgressStore:
     def __init__(self, database_path: Path) -> None:
         database_path.parent.mkdir(parents=True, exist_ok=True)
-        self._connection = sqlite3.connect(database_path)
+        self._connection = sqlite3.connect(database_path, timeout=30.0)
+        self._connection.execute("PRAGMA busy_timeout=30000")
         migrate_database(self._connection, database_path)
         self._closed = False
 

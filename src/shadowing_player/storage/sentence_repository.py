@@ -18,8 +18,10 @@ def _fingerprint(path: Path) -> str:
 class SentenceRepository:
     def __init__(self, database_path: Path) -> None:
         database_path.parent.mkdir(parents=True, exist_ok=True)
-        self._connection = sqlite3.connect(database_path)
+        # timeout helps when a background loader and UI share the same DB file.
+        self._connection = sqlite3.connect(database_path, timeout=30.0)
         self._connection.row_factory = sqlite3.Row
+        self._connection.execute("PRAGMA busy_timeout=30000")
         migrate_database(self._connection, database_path)
         self._closed = False
 

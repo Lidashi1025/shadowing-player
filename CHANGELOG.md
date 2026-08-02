@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.4.1] — 2026-08-02
+
+### Improved
+
+- Subtitle load worker can **persist sentences to SQLite off the UI thread**
+- Production path: discover → load/align → DB write all off UI; UI only applies results
+- Injected test repositories still persist on the UI path
+- SQLite connections use a 30s busy timeout for concurrent access
+
 ## [0.4.0] — 2026-08-02
 
 ### Added

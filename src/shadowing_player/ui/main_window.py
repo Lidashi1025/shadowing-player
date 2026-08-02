@@ -134,9 +134,12 @@ class MainWindow(QMainWindow):
         self._settings_path = settings_path or data_dir / "settings.json"
         self._log_path = log_path or (data_dir / "shadowing-player.log")
         self._settings, settings_warning = load_settings(self._settings_path)
-        self._progress_store = progress_store or ProgressStore(data_dir / "data.sqlite")
+        self._sentence_db_path = data_dir / "data.sqlite"
+        # When tests inject a FakeSentenceRepository, keep DB writes on the UI path.
+        self._persist_sentences_on_worker = sentence_repository is None
+        self._progress_store = progress_store or ProgressStore(self._sentence_db_path)
         self._sentence_repository = sentence_repository or SentenceRepository(
-            data_dir / "data.sqlite"
+            self._sentence_db_path
         )
         model_dir = bundled_model_dir() or (
             data_dir / "models" / "faster-whisper-small"
@@ -1109,6 +1112,9 @@ class MainWindow(QMainWindow):
             chinese_source=chinese_source,
             video_duration_ms=self.backend.duration_ms or None,
             source_key=source_key,
+            database_path=(
+                self._sentence_db_path if self._persist_sentences_on_worker else None
+            ),
         )
 
     def _on_subtitle_load_failed(self, generation: int, message: str) -> None:
@@ -1132,7 +1138,8 @@ class MainWindow(QMainWindow):
         ):
             return
         sentences = list(result.sentences)
-        if self._current_video is not None:
+        if not result.persisted and self._current_video is not None:
+            # Injected fakes / no DB path: persist on the UI thread.
             sentences = self._sentence_repository.replace_source_sentences(
                 self._current_video, result.source_key, sentences
             )
