@@ -20,8 +20,11 @@ def configure_libmpv_path(
     dll_path = resolved_root / "vendor" / "libmpv" / "libmpv-2.dll"
     if not dll_path.is_file():
         raise RuntimeError(
-            "找不到 libmpv-2.dll。请按照 vendor/libmpv/README.md 的说明下载，"
-            f"并放到：{dll_path}"
+            "找不到 libmpv-2.dll，播放器无法启动。\n\n"
+            "请按 vendor/libmpv/README.md 下载 mpv-dev x64 包中的 libmpv-2.dll，"
+            f"并放到：\n{dll_path}\n\n"
+            "Missing libmpv-2.dll. See vendor/libmpv/README.md and place the "
+            f"x64 DLL at:\n{dll_path}"
         )
 
     target_environment = environment if environment is not None else os.environ

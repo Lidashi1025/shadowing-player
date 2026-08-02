@@ -18,7 +18,7 @@ def test_configure_libmpv_path_prepends_vendor_directory(tmp_path: Path) -> None
 
 
 def test_configure_libmpv_path_reports_missing_dll_in_chinese(tmp_path: Path) -> None:
-    with pytest.raises(RuntimeError, match="找不到 libmpv-2.dll"):
+    with pytest.raises(RuntimeError, match="(?s)找不到 libmpv-2.dll.*Missing libmpv-2.dll"):
         configure_libmpv_path(tmp_path, {"PATH": ""})
 
 

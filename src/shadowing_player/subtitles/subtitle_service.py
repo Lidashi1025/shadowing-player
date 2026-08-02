@@ -97,7 +97,9 @@ class SubtitleService:
                 )
             )
         if not sources and subtitle_streams and not text_streams:
-            raise UnsupportedSubtitleError("视频只包含图片字幕，第一版仅支持文字字幕")
+            raise UnsupportedSubtitleError(
+                "视频只包含图片字幕，当前版本仅支持文字字幕（SRT/ASS/内嵌文字轨）"
+            )
         return sources
 
     def choose_default(self, sources: list[SubtitleSource]) -> SubtitleSource | None:

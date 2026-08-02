@@ -92,9 +92,29 @@ All of the above also have dock buttons. Shortcuts are editable under **Tools �
 | Folder-package models | `models\faster-whisper-small` next to the app |
 | Transcription cache | `cache\transcriptions\<hash>.srt` (app directory) |
 
+## Version & logs
+
+```powershell
+.\.venv\Scripts\python.exe -m shadowing_player --version
+```
+
+Inside the app: **Tools → About** shows version, repo link, and log path.
+
+Runtime log:
+
+```text
+%LOCALAPPDATA%\ShadowingPlayer\shadowing-player.log
+```
+
+If embedded subtitles fail, confirm `ffprobe` is on `PATH`. External `.srt`/`.ass` still work without it; the status bar warns at startup when ffprobe is missing.
+
 ## Tests
 
 ```powershell
+# Preferred for CI / day-to-day: unit tests only
+.\.venv\Scripts\python.exe -m pytest tests/unit -q
+
+# Full suite (includes Qt integration tests)
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
@@ -104,7 +124,8 @@ Windows folder packaging scripts live under `packaging/`. Built artifacts in `bu
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and PRs are welcome—especially install friction on clean Windows machines, subtitle edge cases, and accessibility.
+See [CONTRIBUTING.md](CONTRIBUTING.md), [ROADMAP.md](ROADMAP.md), and [CHANGELOG.md](CHANGELOG.md).  
+Issues and PRs are welcome—especially install friction on clean Windows machines, subtitle edge cases, and accessibility.
 
 ## License
 

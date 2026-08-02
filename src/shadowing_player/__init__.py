@@ -1,1 +1,3 @@
-"""儿童影子跟读播放器。"""
+"""Shadowing Player — local Windows sentence-level language practice."""
+
+__version__ = "0.2.1"

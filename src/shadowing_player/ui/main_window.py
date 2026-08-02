@@ -102,6 +102,8 @@ class MainWindow(QMainWindow):
         transcription_service: TranscriptionService | None = None,
         settings_path: Path | None = None,
         restore_last_session: bool = True,
+        startup_warning: str | None = None,
+        log_path: Path | None = None,
     ) -> None:
         super().__init__()
         self.setWindowTitle(strings.WINDOW_TITLE)
@@ -113,6 +115,7 @@ class MainWindow(QMainWindow):
         self._subtitle_sources: list[SubtitleSource] = []
         data_dir = settings_path.parent if settings_path is not None else _default_data_dir()
         self._settings_path = settings_path or data_dir / "settings.json"
+        self._log_path = log_path or (data_dir / "shadowing-player.log")
         self._settings, settings_warning = load_settings(self._settings_path)
         self._progress_store = progress_store or ProgressStore(data_dir / "data.sqlite")
         self._sentence_repository = sentence_repository or SentenceRepository(
@@ -187,6 +190,7 @@ class MainWindow(QMainWindow):
         )
         self.open_data_action = self.tools_menu.addAction(strings.OPEN_DATA_FOLDER)
         self.shortcut_help_action = self.tools_menu.addAction(strings.SHORTCUT_HELP)
+        self.about_action = self.tools_menu.addAction(strings.ABOUT)
         self.tools_button.setMenu(self.tools_menu)
         top.addWidget(self.open_button)
         top.addWidget(self.recent_button)
@@ -382,6 +386,10 @@ class MainWindow(QMainWindow):
         self._refresh_action_dock()
         if settings_warning:
             self.status_label.setText(settings_warning)
+        elif startup_warning:
+            self.status_label.setText(
+                strings.FFPROBE_WARNING.format(message=startup_warning)
+            )
         if restore_last_session:
             QTimer.singleShot(0, self._restore_last_session)
 
@@ -415,6 +423,7 @@ class MainWindow(QMainWindow):
         self.create_shortcut_action.triggered.connect(self._create_desktop_shortcut)
         self.open_data_action.triggered.connect(self._open_data_folder)
         self.shortcut_help_action.triggered.connect(self._show_shortcut_help)
+        self.about_action.triggered.connect(self._show_about)
         self.sentence_progress.sentence_clicked.connect(lambda index: self.controller.select_sentence(index, True))
         self.backend.pause_changed.connect(self._set_pause_label)
         self.backend.file_loaded.connect(self._file_loaded)
@@ -666,6 +675,16 @@ class MainWindow(QMainWindow):
         self._install_shortcuts()
         save_settings(self._settings_path, self._current_settings())
         self.status_label.setText(strings.SHORTCUTS_SAVED)
+
+    def _show_about(self) -> None:
+        from shadowing_player import __version__
+
+        body = strings.ABOUT_BODY.format(
+            version=__version__,
+            repo="https://github.com/Lidashi1025/shadowing-player",
+            log_path=self._log_path,
+        )
+        QMessageBox.about(self, strings.ABOUT_TITLE, body)
 
     @staticmethod
     def _dropped_video_path(mime_data: QMimeData) -> Path | None:
