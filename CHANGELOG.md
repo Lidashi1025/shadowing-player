@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.4.0] — 2026-08-02
+
+### Added
+
+- **Full subtitle load pipeline**: parse/align sentences off the UI thread (`SubtitleLoadController`)
+- **Sentence recording & compare**:
+  - Dock row: 录音 / 听录音 / 听原句
+  - Shortcuts: Ctrl+R, Ctrl+Shift+R, Ctrl+Shift+O
+  - WAV stored under `%LOCALAPPDATA%\ShadowingPlayer\recordings\`
+
+### Notes
+
+- Tests still force sync load via `SHADOWING_SYNC_SUBTITLE_LOAD=1`
+- Requires a working system microphone for recording
+
 ## [0.3.1] — 2026-08-02
 
 ### Architecture (Kimi K3 iteration A)

@@ -41,6 +41,7 @@ Shadowing Player is a small, local tool for that workflow—useful for parents, 
 - `ffmpeg.exe` and `ffprobe.exe` on `PATH` (embedded subtitle extraction)
 - First-time ASR downloads faster-whisper `small` over the network; transcription runs on local CPU
 - ASR language and starred export live under **Tools**
+- **Recording compare**: 录音 → 听录音 / 听原句 (mic required; files in `%LOCALAPPDATA%\ShadowingPlayer\recordings\`)
 
 ## Install & run
 

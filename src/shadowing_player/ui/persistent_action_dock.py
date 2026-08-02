@@ -43,6 +43,9 @@ class PersistentActionDock(QFrame):
         "shortcut_help": "查看并设置快捷键",
         "speed_down": "降低 0.05 倍速",
         "speed_up": "提高 0.05 倍速",
+        "record": "录制当前句跟读（再点结束）",
+        "play_recording": "播放刚才的录音",
+        "play_original": "播放视频原句",
     }
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -92,6 +95,23 @@ class PersistentActionDock(QFrame):
         self.settings_row.setContentsMargins(0, 0, 0, 0)
         self.settings_row.setSpacing(6)
         layout.addWidget(settings_frame)
+
+        practice_frame = QFrame(self)
+        practice_frame.setObjectName("practiceActionRow")
+        self.practice_row = QHBoxLayout(practice_frame)
+        self.practice_row.setContentsMargins(0, 0, 0, 0)
+        self.practice_row.setSpacing(6)
+        layout.addWidget(practice_frame)
+        self.record_button = self._state_button("录音", "record", 72)
+        self.play_recording_button = self._action_button("听录音", "play_recording", 78)
+        self.play_original_button = self._action_button("听原句", "play_original", 78)
+        for button in (
+            self.record_button,
+            self.play_recording_button,
+            self.play_original_button,
+        ):
+            self.practice_row.addWidget(button)
+        self.practice_row.addStretch(1)
 
         self.mode_combo = QComboBox(settings_frame)
         for mode, label in self._MODE_LABELS.items():
@@ -147,12 +167,19 @@ class PersistentActionDock(QFrame):
             "single_loop": self.single_loop_button,
             "subtitle": self.subtitle_action_button,
             "star": self.star_button,
+            "record": self.record_button,
+            "play_recording": self.play_recording_button,
+            "play_original": self.play_original_button,
             "fullscreen": self.fullscreen_button,
             "shortcut_help": self.shortcut_button,
             "speed_down": self.speed_down_button,
             "speed_up": self.speed_up_button,
         }
         self.set_shortcut_hints({})
+
+    def set_recording(self, active: bool) -> None:
+        self.record_button.setChecked(active)
+        self.record_button.setText("停止" if active else "录音")
 
     def _action_button(
         self, text: str, action_name: str, width: int

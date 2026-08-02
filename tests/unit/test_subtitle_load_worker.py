@@ -1,0 +1,31 @@
+from pathlib import Path
+
+from shadowing_player.playback.subtitle_load_worker import (
+    SubtitleLoadController,
+    SubtitleLoadResult,
+)
+from shadowing_player.subtitles.models import Sentence, SubtitleSource
+
+
+class FakeService:
+    def load_sentences(self, source, video_duration_ms=None):
+        return [Sentence(0, 0, 1000, "Hello")]
+
+
+def test_sync_load_emits_result(qtbot, tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SHADOWING_SYNC_SUBTITLE_LOAD", "1")
+    controller = SubtitleLoadController()
+    source = SubtitleSource.external(tmp_path / "a.srt")
+    results: list[SubtitleLoadResult] = []
+    controller.finished.connect(lambda result: results.append(result))
+    controller.load(
+        FakeService(),  # type: ignore[arg-type]
+        video_path=tmp_path / "v.mp4",
+        source=source,
+        chinese_source=None,
+        video_duration_ms=5_000,
+        source_key="k",
+    )
+    qtbot.waitUntil(lambda: bool(results), timeout=1_000)
+    assert results[0].sentences[0].text == "Hello"
+    assert results[0].source_key == "k"

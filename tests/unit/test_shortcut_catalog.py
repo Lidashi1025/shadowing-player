@@ -22,6 +22,9 @@ def test_shortcut_catalog_covers_all_visible_actions() -> None:
         "mode",
         "star",
         "review",
+        "record",
+        "play_recording",
+        "play_original",
         "fullscreen",
         "shortcut_help",
     } == names

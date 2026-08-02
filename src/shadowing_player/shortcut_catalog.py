@@ -28,6 +28,9 @@ _DEFINITIONS = (
     ShortcutDefinition("mode", "切换练习模式", "依次切换四种播放模式", "练习", "Tab"),
     ShortcutDefinition("star", "收藏 / 取消收藏", "切换当前句的收藏状态", "练习", "S"),
     ShortcutDefinition("review", "打开复习清单", "播放所有影片的收藏句", "练习", "R"),
+    ShortcutDefinition("record", "录音 / 停止", "录制当前句跟读，再按结束", "练习", "Ctrl+R"),
+    ShortcutDefinition("play_recording", "听录音", "播放当前句的录音", "练习", "Ctrl+Shift+R"),
+    ShortcutDefinition("play_original", "听原句", "播放视频中的当前句", "练习", "Ctrl+Shift+O"),
     ShortcutDefinition("fullscreen", "全屏", "切换全屏与普通窗口", "窗口", "F"),
     ShortcutDefinition("shortcut_help", "快捷键设置", "打开本设置面板", "窗口", "F1"),
 )

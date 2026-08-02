@@ -39,7 +39,16 @@ from shadowing_player.media_types import is_supported_video
 from shadowing_player.playback.mpv_backend import MpvBackend
 from shadowing_player.playback.review_session import ReviewSession
 from shadowing_player.playback.session_controller import PlaybackMode, SessionController, SessionPhase
+from shadowing_player.audio.sentence_recorder import (
+    SentenceRecorder,
+    WavPlayer,
+    recording_path_for,
+)
 from shadowing_player.playback.subtitle_discover_worker import SubtitleDiscoverController
+from shadowing_player.playback.subtitle_load_worker import (
+    SubtitleLoadController,
+    SubtitleLoadResult,
+)
 from shadowing_player.playback.transcription_jobs import (
     TranscriptionJob,
     TranscriptionJobManager,
@@ -145,7 +154,9 @@ class MainWindow(QMainWindow):
         self._teardown_complete = False
         self._review_session = ReviewSession()
         self._pending_open_progress: VideoProgress | None = None
+        self._pending_finish_progress: VideoProgress | None = None
         self._discover = SubtitleDiscoverController(self)
+        self._loader = SubtitleLoadController(self)
         self._transcriptions = TranscriptionJobManager(
             self._transcription_service,
             parent=self,
@@ -153,6 +164,9 @@ class MainWindow(QMainWindow):
             is_closing=lambda: self._close_pending,
             is_torn_down=lambda: self._teardown_complete,
         )
+        self._recorder = SentenceRecorder(self)
+        self._wav_player = WavPlayer(self)
+        self._last_recording_path: Path | None = None
 
         root = QWidget(self)
         root.setObjectName("appRoot")
@@ -357,6 +371,9 @@ class MainWindow(QMainWindow):
         self.single_loop_button = self.action_dock.single_loop_button
         self.subtitle_action_button = self.action_dock.subtitle_action_button
         self.star_button = self.action_dock.star_button
+        self.record_button = self.action_dock.record_button
+        self.play_recording_button = self.action_dock.play_recording_button
+        self.play_original_button = self.action_dock.play_original_button
         self.fullscreen_button = self.action_dock.fullscreen_button
         self.shortcut_button = self.action_dock.shortcut_button
         self.speed_down_button = self.action_dock.speed_down_button
@@ -380,6 +397,9 @@ class MainWindow(QMainWindow):
             "subtitle": self.subtitle_action_button,
             "mode": self.mode_action_button,
             "star": self.star_button,
+            "record": self.record_button,
+            "play_recording": self.play_recording_button,
+            "play_original": self.play_original_button,
             "review": self.review_button,
             "fullscreen": self.fullscreen_button,
             "shortcut_help": self.shortcut_button,
@@ -473,6 +493,16 @@ class MainWindow(QMainWindow):
         self.review_controller.current_changed.connect(self._review_item_changed)
         self._discover.finished.connect(self._on_discover_finished)
         self._discover.failed.connect(self._on_discover_failed)
+        self._loader.finished.connect(self._on_subtitle_load_finished)
+        self._loader.failed.connect(self._on_subtitle_load_failed)
+        self._recorder.started.connect(self._on_recording_started)
+        self._recorder.stopped.connect(self._on_recording_stopped)
+        self._recorder.failed.connect(self._on_recording_failed)
+        self._wav_player.failed.connect(
+            lambda message: self.status_label.setText(
+                strings.PLAYBACK_FAILED.format(message=message)
+            )
+        )
         self._transcriptions.phase_changed.connect(self.transcription_status.set_phase)
         self._transcriptions.progress_changed.connect(
             self.transcription_status.set_progress
@@ -506,6 +536,9 @@ class MainWindow(QMainWindow):
             "mode": self._cycle_mode,
             "star": self._toggle_current_star,
             "review": self._open_review,
+            "record": self._toggle_recording,
+            "play_recording": self._play_recording,
+            "play_original": self._play_original_sentence,
             "fullscreen": self._toggle_fullscreen,
             "shortcut_help": self._show_shortcut_help,
         }
@@ -534,6 +567,9 @@ class MainWindow(QMainWindow):
             "subtitle": self._cycle_subtitle_mode,
             "mode": self._cycle_mode,
             "star": self._toggle_current_star,
+            "record": self._toggle_recording,
+            "play_recording": self._play_recording,
+            "play_original": self._play_original_sentence,
             "fullscreen": self._toggle_fullscreen,
             "shortcut_help": self._show_shortcut_help,
         }
@@ -557,6 +593,9 @@ class MainWindow(QMainWindow):
             self.previous_button,
             self.repeat_button,
             self.next_button,
+            self.record_button,
+            self.play_recording_button,
+            self.play_original_button,
         ):
             button.setEnabled(has_sentence)
 
@@ -723,6 +762,68 @@ class MainWindow(QMainWindow):
         )
         QMessageBox.about(self, strings.ABOUT_TITLE, body)
 
+    def _recording_target_path(self) -> Path | None:
+        sentence = self.controller.current_sentence
+        if sentence is None:
+            return None
+        return recording_path_for(
+            self._settings_path.parent,
+            self._current_video,
+            sentence.start_ms,
+            sentence.end_ms,
+        )
+
+    def _toggle_recording(self) -> None:
+        if self._recorder.is_recording:
+            self._recorder.stop()
+            return
+        sentence = self.controller.current_sentence
+        path = self._recording_target_path()
+        if sentence is None or path is None:
+            self.status_label.setText(strings.RECORD_NEED_SENTENCE)
+            return
+        self.backend.pause()
+        max_ms = max(3_000, sentence.duration_ms + 2_000)
+        self._recorder.start(path, max_ms=max_ms)
+
+    def _on_recording_started(self) -> None:
+        self.action_dock.set_recording(True)
+        sentence = self.controller.current_sentence
+        seconds = 15
+        if sentence is not None:
+            seconds = max(3, (sentence.duration_ms + 2_000) // 1000)
+        self.status_label.setText(strings.RECORDING.format(seconds=seconds))
+
+    def _on_recording_stopped(self, path: object) -> None:
+        self.action_dock.set_recording(False)
+        if isinstance(path, Path):
+            self._last_recording_path = path
+        self.status_label.setText(strings.RECORD_SAVED)
+
+    def _on_recording_failed(self, message: str) -> None:
+        self.action_dock.set_recording(False)
+        self.status_label.setText(strings.RECORD_FAILED.format(message=message))
+
+    def _play_recording(self) -> None:
+        path = self._recording_target_path()
+        if path is None or not path.is_file():
+            if self._last_recording_path is not None and self._last_recording_path.is_file():
+                path = self._last_recording_path
+            else:
+                self.status_label.setText(strings.NO_RECORDING)
+                return
+        self.backend.pause()
+        self._wav_player.play(path)
+        self.status_label.setText(f"播放录音：{path.name}")
+
+    def _play_original_sentence(self) -> None:
+        if self.controller.current_sentence is None:
+            self.status_label.setText(strings.RECORD_NEED_SENTENCE)
+            return
+        self._wav_player.stop()
+        self.controller.repeat_current()
+        self.status_label.setText("播放原句")
+
     def _sync_asr_language_menu(self) -> None:
         current = getattr(self._transcription_service, "language", self._settings.asr_language)
         for code, action in self._asr_language_actions.items():
@@ -845,11 +946,16 @@ class MainWindow(QMainWindow):
             self._review_session.cancel()
         self._transcriptions.abandon()
         self._discover.cancel_pending()
+        self._loader.cancel_pending()
+        if self._recorder.is_recording:
+            self._recorder.stop()
+        self._wav_player.stop()
         self._save_current_progress()
         self._current_video = video_path.resolve()
         self._last_position_ms = 0
         progress = self._progress_store.load(self._current_video)
         self._pending_open_progress = progress
+        self._pending_finish_progress = None
         self._progress_store.mark_opened(self._current_video)
         self.play_button.setEnabled(True)
         self.backend.open_file(str(video_path))
@@ -913,8 +1019,7 @@ class MainWindow(QMainWindow):
             assert plan.selected is not None
             self._subtitle_sources = plan.sources
             self._populate_subtitle_combo(plan.sources, plan.selected)
-            self._load_subtitle_source(plan.selected)
-            self._finish_open(progress)
+            self._load_subtitle_source(plan.selected, finish_progress=progress)
             return
         if plan.kind is PlanKind.NO_SOURCES_PROMPT:
             self.controller.load_sentences([], self.backend.duration_ms)
@@ -937,8 +1042,9 @@ class MainWindow(QMainWindow):
             assert plan.selected is not None
             self._subtitle_sources = plan.sources
             self._populate_subtitle_combo(plan.sources, plan.selected)
-            self._load_subtitle_source(plan.selected, plan.chinese_source)
-            self._finish_open(progress)
+            self._load_subtitle_source(
+                plan.selected, plan.chinese_source, finish_progress=progress
+            )
             return
         if plan.kind is PlanKind.CHINESE_ONLY_TRANSCRIBE:
             self._subtitle_sources = plan.sources
@@ -971,8 +1077,9 @@ class MainWindow(QMainWindow):
         assert plan.selected is not None
         self._subtitle_sources = plan.sources
         self._populate_subtitle_combo(plan.sources, plan.selected)
-        self._load_subtitle_source(plan.selected, plan.chinese_source)
-        self._finish_open(progress)
+        self._load_subtitle_source(
+            plan.selected, plan.chinese_source, finish_progress=progress
+        )
 
     def _populate_subtitle_combo(
         self, sources: list[SubtitleSource], selected: SubtitleSource
@@ -988,31 +1095,53 @@ class MainWindow(QMainWindow):
         self,
         source: SubtitleSource,
         chinese_source: SubtitleSource | None = None,
+        finish_progress: VideoProgress | None = None,
     ) -> None:
-        try:
-            if (
-                chinese_source is not None
-                and hasattr(self._subtitle_service, "load_bilingual_sentences")
-            ):
-                sentences = self._subtitle_service.load_bilingual_sentences(
-                    source, chinese_source, self.backend.duration_ms or None
-                )
-            else:
-                sentences = self._subtitle_service.load_sentences(
-                    source, self.backend.duration_ms or None
-                )
-        except SubtitleError as exc:
-            self.status_label.setText(str(exc))
+        source_key = self._source_content_key(source)
+        if chinese_source is not None:
+            source_key += f"|zh:{self._source_content_key(chinese_source)}"
+        self._pending_finish_progress = finish_progress
+        self.status_label.setText(strings.LOADING_SENTENCES)
+        self._loader.load(
+            self._subtitle_service,
+            video_path=self._current_video,
+            source=source,
+            chinese_source=chinese_source,
+            video_duration_ms=self.backend.duration_ms or None,
+            source_key=source_key,
+        )
+
+    def _on_subtitle_load_failed(self, generation: int, message: str) -> None:
+        if generation != self._loader.generation:
             return
+        self.status_label.setText(message)
+        progress = self._pending_finish_progress
+        self._pending_finish_progress = None
+        if progress is not None:
+            self._finish_open(progress)
+
+    def _on_subtitle_load_finished(self, result: object) -> None:
+        if not isinstance(result, SubtitleLoadResult):
+            return
+        if result.generation != self._loader.generation:
+            return
+        if (
+            result.video_path is not None
+            and self._current_video is not None
+            and result.video_path.resolve() != self._current_video.resolve()
+        ):
+            return
+        sentences = list(result.sentences)
         if self._current_video is not None:
-            source_key = self._source_content_key(source)
-            if chinese_source is not None:
-                source_key += f"|zh:{self._source_content_key(chinese_source)}"
             sentences = self._sentence_repository.replace_source_sentences(
-                self._current_video, source_key, sentences
+                self._current_video, result.source_key, sentences
             )
         self._apply_sentences(sentences)
         self.status_label.setText(f"已载入 {len(sentences)} 句")
+        progress = self._pending_finish_progress
+        self._pending_finish_progress = None
+        if progress is not None:
+            self._finish_open(progress)
 
     @staticmethod
     def _source_content_key(source: SubtitleSource) -> str:
@@ -1434,6 +1563,10 @@ class MainWindow(QMainWindow):
             return
         self._teardown_complete = True
         self._discover.cancel_pending()
+        self._loader.cancel_pending()
+        if self._recorder.is_recording:
+            self._recorder.stop()
+        self._wav_player.stop()
         self._save_current_progress()
         save_settings(self._settings_path, self._current_settings())
         self.controller.timer.cancel()

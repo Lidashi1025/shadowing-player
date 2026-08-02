@@ -10,8 +10,8 @@ from shadowing_player.subtitles.subtitle_service import SubtitleError, SubtitleS
 
 
 def sync_subtitle_load_enabled() -> bool:
-    """Tests set SHADOWING_SYNC_SUBTITLE_LOAD=1 to keep open_video synchronous."""
-    return os.environ.get("SHADOWING_SYNC_SUBTITLE_LOAD", "").strip() in {
+    """Tests set SHADOWING_SYNC_SUBTITLE_LOAD=1 to keep open/load synchronous."""
+    return os.environ.get("SHADOWING_SYNC_SUBTITLE_LOAD", "").strip().lower() in {
         "1",
         "true",
         "yes",

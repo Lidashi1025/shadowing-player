@@ -770,6 +770,11 @@ def test_persistent_action_rows_fit_the_980_pixel_minimum_width(
             window.blank_combo,
             window.auto_advance_check,
         ],
+        [
+            window.record_button,
+            window.play_recording_button,
+            window.play_original_button,
+        ],
     ]
     for controls in rows:
         rectangles = [

@@ -17,10 +17,12 @@
 ## Next
 
 1. ~~Split MainWindow / background discover~~ (v0.3.1)
-2. Move remaining subtitle **load_sentences** / sqlite write off UI thread
-3. Recording / self-compare for shadowing feedback
-4. Light practice stats (`practiced_count`)
-5. GPU/CUDA optional for ASR
+2. ~~Subtitle load pipeline off UI thread~~ (v0.4.0)
+3. ~~Recording / self-compare~~ (v0.4.0 basic WAV)
+4. Waveform compare UI / optional scoring
+5. Persist DB writes also off UI thread
+6. Light practice stats (`practiced_count`)
+7. GPU/CUDA optional for ASR
 
 ## Later
 

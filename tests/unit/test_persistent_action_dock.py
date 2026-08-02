@@ -11,10 +11,12 @@ def test_action_dock_exposes_two_rows_and_all_action_buttons(qtbot) -> None:
     assert dock.objectName() == "persistentActionDock"
     assert dock.primary_row.count() == 10
     assert dock.settings_row.count() == 8
+    assert dock.practice_row.count() == 4  # 3 buttons + stretch
     assert not hasattr(dock, "loop_combo")
     assert dock.single_loop_button.isCheckable()
     assert dock.subtitle_action_button.isCheckable()
     assert dock.star_button.isCheckable()
+    assert dock.record_button.isCheckable()
     assert dock.fullscreen_button.isCheckable()
 
 
