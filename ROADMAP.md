@@ -16,8 +16,8 @@
 
 ## Next
 
-1. Split `MainWindow` into loader / transcription / review coordinators
-2. Move ffprobe/ffmpeg off the UI thread (background load pipeline)
+1. ~~Split MainWindow / background discover~~ (v0.3.1)
+2. Move remaining subtitle **load_sentences** / sqlite write off UI thread
 3. Recording / self-compare for shadowing feedback
 4. Light practice stats (`practiced_count`)
 5. GPU/CUDA optional for ASR

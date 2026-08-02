@@ -5,13 +5,14 @@ import os
 import sqlite3
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from pathlib import Path
 
-from PySide6.QtCore import QMimeData, QSignalBlocker, QThread, QTimer, Qt, QUrl
+from PySide6.QtCore import QMimeData, QSignalBlocker, QTimer, Qt, QUrl
 from PySide6.QtGui import QCloseEvent, QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QComboBox,
     QDialog,
     QFileDialog,
@@ -36,7 +37,14 @@ from shadowing_player.export.starred_export import (
 )
 from shadowing_player.media_types import is_supported_video
 from shadowing_player.playback.mpv_backend import MpvBackend
+from shadowing_player.playback.review_session import ReviewSession
 from shadowing_player.playback.session_controller import PlaybackMode, SessionController, SessionPhase
+from shadowing_player.playback.subtitle_discover_worker import SubtitleDiscoverController
+from shadowing_player.playback.transcription_jobs import (
+    TranscriptionJob,
+    TranscriptionJobManager,
+)
+from shadowing_player.playback.video_open_plan import PlanKind, plan_after_discover
 from shadowing_player.runtime.bundle_paths import bundled_model_dir, transcription_cache_dir
 from shadowing_player.runtime.windows_shortcut import (
     ShortcutCreationError,
@@ -50,7 +58,6 @@ from shadowing_player.storage.sentence_repository import SentenceRepository
 from shadowing_player.storage.settings import AppSettings, load_settings, save_settings
 from shadowing_player.transcription.model_manager import ModelManager
 from shadowing_player.transcription.service import TranscriptionService
-from shadowing_player.transcription.worker import CancellationToken, TranscriptionWorker
 from shadowing_player.review.review_controller import ReviewController
 from shadowing_player.ui import strings
 from shadowing_player.ui.clickable_video_widget import ClickableVideoWidget
@@ -71,16 +78,6 @@ from shadowing_player.ui.transcription_status_bar import TranscriptionStatusBar
 
 
 LOGGER = logging.getLogger(__name__)
-
-
-@dataclass(eq=False, slots=True)
-class _TranscriptionJob:
-    video_path: Path
-    thread: QThread
-    worker: TranscriptionWorker
-    token: CancellationToken
-    progress: VideoProgress | None
-    chinese_source: SubtitleSource | None
 
 
 def _format_time(milliseconds: int) -> str:
@@ -144,16 +141,18 @@ class MainWindow(QMainWindow):
         self._current_video: Path | None = None
         self._last_position_ms = 0
         self._last_left_press = 0.0
-        self._transcription_job: _TranscriptionJob | None = None
-        self._transcription_jobs: list[_TranscriptionJob] = []
-        self._queued_transcription: tuple[
-            Path, VideoProgress | None, SubtitleSource | None
-        ] | None = None
         self._close_pending = False
         self._teardown_complete = False
-        self._review_in_progress = False
-        self._review_return_video: Path | None = None
-        self._review_return_mode: PlaybackMode | None = None
+        self._review_session = ReviewSession()
+        self._pending_open_progress: VideoProgress | None = None
+        self._discover = SubtitleDiscoverController(self)
+        self._transcriptions = TranscriptionJobManager(
+            self._transcription_service,
+            parent=self,
+            current_video=lambda: self._current_video,
+            is_closing=lambda: self._close_pending,
+            is_torn_down=lambda: self._teardown_complete,
+        )
 
         root = QWidget(self)
         root.setObjectName("appRoot")
@@ -472,6 +471,17 @@ class MainWindow(QMainWindow):
         self.controller.completed.connect(lambda: self.prompt_label.setText(strings.PRACTICE_COMPLETED))
         self.review_controller.warning.connect(self.status_label.setText)
         self.review_controller.current_changed.connect(self._review_item_changed)
+        self._discover.finished.connect(self._on_discover_finished)
+        self._discover.failed.connect(self._on_discover_failed)
+        self._transcriptions.phase_changed.connect(self.transcription_status.set_phase)
+        self._transcriptions.progress_changed.connect(
+            self.transcription_status.set_progress
+        )
+        self._transcriptions.job_completed.connect(self._on_transcription_job_completed)
+        self._transcriptions.job_cancelled.connect(self._on_transcription_job_cancelled)
+        self._transcriptions.job_failed.connect(self._on_transcription_job_failed)
+        self._transcriptions.active_changed.connect(self._on_transcription_active_changed)
+        self._transcriptions.queue_message.connect(self._on_transcription_queue_message)
         self.review_controller.completed.connect(self._review_completed)
         self.transcription_status.cancel_requested.connect(
             self._request_transcription_cancel
@@ -830,59 +840,83 @@ class MainWindow(QMainWindow):
     def open_video(self, video_path: Path) -> None:
         if self._close_pending:
             return
-        if self._review_in_progress:
+        if self._review_session.active:
             self.review_controller.stop()
-            self._review_in_progress = False
-            self._review_return_video = None
-            self._review_return_mode = None
-        self._abandon_transcription()
+            self._review_session.cancel()
+        self._transcriptions.abandon()
+        self._discover.cancel_pending()
         self._save_current_progress()
         self._current_video = video_path.resolve()
         self._last_position_ms = 0
         progress = self._progress_store.load(self._current_video)
+        self._pending_open_progress = progress
         self._progress_store.mark_opened(self._current_video)
         self.play_button.setEnabled(True)
         self.backend.open_file(str(video_path))
         self.file_label.setText(video_path.name)
         self.status_label.setText(strings.PARSING_SUBTITLES)
-        from PySide6.QtWidgets import QApplication as _QApplication
+        # Clear any leftover wait cursor from a superseded open.
+        while QApplication.overrideCursor() is not None:
+            QApplication.restoreOverrideCursor()
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        self._discover.discover(self._subtitle_service, video_path)
 
-        _QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        try:
-            sources = self._subtitle_service.discover(video_path)
-        except SubtitleError as exc:
-            self._subtitle_sources = []
-            self.sentence_model.set_sentences([])
-            self.sentence_progress.set_sentence_count(0)
-            self.status_label.setText(str(exc))
-            self.controller.load_sentences([], self.backend.duration_ms)
+    def _on_discover_failed(self, generation: int, message: str) -> None:
+        if generation != self._discover.generation:
+            return
+        QApplication.restoreOverrideCursor()
+        progress = self._pending_open_progress
+        self._pending_open_progress = None
+        self._subtitle_sources = []
+        self.sentence_model.set_sentences([])
+        self.sentence_progress.set_sentence_count(0)
+        self.status_label.setText(message)
+        self.controller.load_sentences([], self.backend.duration_ms)
+        self._finish_open(progress)
+
+    def _on_discover_finished(self, generation: int, sources: object) -> None:
+        if generation != self._discover.generation:
+            return
+        QApplication.restoreOverrideCursor()
+        progress = self._pending_open_progress
+        self._pending_open_progress = None
+        if not isinstance(sources, list):
+            sources = []
+        self._apply_open_plan(
+            plan_after_discover(
+                sources,
+                progress=progress,
+                video_path=self._current_video or Path(),
+                find_cache=self._find_transcription_cache,
+                choose_language_sources=(
+                    self._subtitle_service.choose_language_sources
+                    if hasattr(self._subtitle_service, "choose_language_sources")
+                    else None
+                ),
+                choose_default=self._subtitle_service.choose_default,
+            ),
+            progress,
+        )
+
+    def _find_transcription_cache(self, video_path: Path) -> Path | None:
+        if hasattr(self._transcription_service, "existing_cache_path_for"):
+            return self._transcription_service.existing_cache_path_for(video_path)
+        candidate = self._transcription_service.cache_path_for(video_path)
+        return candidate if candidate.is_file() else None
+
+    def _apply_open_plan(self, plan, progress: VideoProgress | None) -> None:
+        if plan.kind is PlanKind.CACHE_ERROR:
+            self.status_label.setText(plan.message or strings.ERROR.format(message="cache"))
             self._finish_open(progress)
             return
-        finally:
-            _QApplication.restoreOverrideCursor()
-        self._subtitle_sources = sources
-        if not sources:
-            try:
-                if hasattr(self._transcription_service, "existing_cache_path_for"):
-                    cached = self._transcription_service.existing_cache_path_for(
-                        self._current_video
-                    )
-                else:
-                    candidate = self._transcription_service.cache_path_for(
-                        self._current_video
-                    )
-                    cached = candidate if candidate.is_file() else None
-            except OSError as exc:
-                self.status_label.setText(str(exc))
-                self._finish_open(progress)
-                return
-            if cached is not None and cached.is_file():
-                source = SubtitleSource.external(cached)
-                self._subtitle_sources = [source]
-                self._populate_subtitle_combo([source], source)
-                self._load_subtitle_source(source)
-                self._finish_open(progress)
-                return
+        if plan.kind is PlanKind.NO_SOURCES_USE_CACHE:
+            assert plan.selected is not None
+            self._subtitle_sources = plan.sources
+            self._populate_subtitle_combo(plan.sources, plan.selected)
+            self._load_subtitle_source(plan.selected)
+            self._finish_open(progress)
+            return
+        if plan.kind is PlanKind.NO_SOURCES_PROMPT:
             self.controller.load_sentences([], self.backend.duration_ms)
             answer = QMessageBox.question(
                 self,
@@ -893,84 +927,51 @@ class MainWindow(QMainWindow):
             )
             if answer == QMessageBox.StandardButton.Yes:
                 self._finish_open(progress)
-                self._start_transcription(self._current_video, None)
+                if self._current_video is not None:
+                    self._start_transcription(self._current_video, None)
             else:
                 self.status_label.setText(strings.NO_SUBTITLE)
                 self._finish_open(progress)
             return
-
-        self.subtitle_combo.blockSignals(True)
-        self.subtitle_combo.clear()
-        for source in sources:
-            self.subtitle_combo.addItem(source.label, source)
-        restored_source = next(
-            (
-                source
-                for source in sources
-                if progress is not None and source.identifier == progress.subtitle_source_id
-            ),
-            None,
-        )
-        default_source = restored_source
-        chinese_source: SubtitleSource | None = None
-        if hasattr(self._subtitle_service, "choose_language_sources"):
-            english_source, chinese_source = self._subtitle_service.choose_language_sources(
-                sources
-            )
-            if english_source is None and chinese_source is not None:
-                try:
-                    if hasattr(
-                        self._transcription_service, "existing_cache_path_for"
-                    ):
-                        cached = (
-                            self._transcription_service.existing_cache_path_for(
-                                self._current_video
-                            )
-                        )
-                    else:
-                        candidate = self._transcription_service.cache_path_for(
-                            self._current_video
-                        )
-                        cached = candidate if candidate.is_file() else None
-                except OSError as exc:
-                    self.subtitle_combo.blockSignals(False)
-                    self.status_label.setText(str(exc))
-                    self._finish_open(progress)
-                    return
-                if cached is not None and cached.is_file():
-                    generated_source = SubtitleSource.external(cached)
-                    combined_sources = [generated_source, *sources]
-                    self._subtitle_sources = combined_sources
-                    self._populate_subtitle_combo(
-                        combined_sources, generated_source
-                    )
-                    self._load_subtitle_source(
-                        generated_source, chinese_source
-                    )
-                    self._finish_open(progress)
-                    return
-                self.subtitle_combo.setCurrentIndex(sources.index(chinese_source))
-                self.subtitle_combo.blockSignals(False)
-                self.controller.load_sentences([], self.backend.duration_ms)
-                self._finish_open(progress)
+        if plan.kind is PlanKind.CHINESE_ONLY_USE_CACHE:
+            assert plan.selected is not None
+            self._subtitle_sources = plan.sources
+            self._populate_subtitle_combo(plan.sources, plan.selected)
+            self._load_subtitle_source(plan.selected, plan.chinese_source)
+            self._finish_open(progress)
+            return
+        if plan.kind is PlanKind.CHINESE_ONLY_TRANSCRIBE:
+            self._subtitle_sources = plan.sources
+            self.subtitle_combo.blockSignals(True)
+            self.subtitle_combo.clear()
+            for source in plan.sources:
+                self.subtitle_combo.addItem(source.label, source)
+            if plan.selected is not None and plan.selected in plan.sources:
+                self.subtitle_combo.setCurrentIndex(plan.sources.index(plan.selected))
+            self.subtitle_combo.blockSignals(False)
+            self.controller.load_sentences([], self.backend.duration_ms)
+            self._finish_open(progress)
+            if self._current_video is not None:
                 self._start_transcription(
-                    self._current_video, None, chinese_source
+                    self._current_video, None, plan.chinese_source
                 )
-                return
-            if default_source is chinese_source:
-                default_source = None
-            default_source = default_source or english_source
-        default_source = default_source or self._subtitle_service.choose_default(sources)
-        if default_source is None:
+            return
+        if plan.kind is PlanKind.NO_USABLE:
+            self._subtitle_sources = plan.sources
+            self.subtitle_combo.blockSignals(True)
+            self.subtitle_combo.clear()
+            for source in plan.sources:
+                self.subtitle_combo.addItem(source.label, source)
             self.subtitle_combo.blockSignals(False)
             self.controller.load_sentences([], self.backend.duration_ms)
             self.status_label.setText(strings.NO_SUBTITLE)
             self._finish_open(progress)
             return
-        default_index = sources.index(default_source)
-        self.subtitle_combo.setCurrentIndex(default_index)
-        self.subtitle_combo.blockSignals(False)
-        self._load_subtitle_source(default_source, chinese_source)
+        # USE_SOURCE
+        assert plan.selected is not None
+        self._subtitle_sources = plan.sources
+        self._populate_subtitle_combo(plan.sources, plan.selected)
+        self._load_subtitle_source(plan.selected, plan.chinese_source)
         self._finish_open(progress)
 
     def _populate_subtitle_combo(
@@ -1070,7 +1071,7 @@ class MainWindow(QMainWindow):
         sentence = self.controller.current_sentence
         if sentence is None:
             return
-        if not self._review_in_progress:
+        if not self._review_session.active:
             self.sentence_model.toggle_star(self.controller.current_index)
             return
         updated = replace(sentence, starred=not sentence.starred)
@@ -1139,9 +1140,7 @@ class MainWindow(QMainWindow):
         if not ReviewDialog.confirm(items, self):
             return
         self._save_current_progress()
-        self._review_return_video = self._current_video
-        self._review_return_mode = self.current_mode
-        self._review_in_progress = True
+        self._review_session.begin(self._current_video, self.current_mode)
         self.status_label.setText(f"开始复习 {len(items)} 句")
         self.review_controller.start(items)
 
@@ -1151,11 +1150,7 @@ class MainWindow(QMainWindow):
 
     def _review_completed(self) -> None:
         self.status_label.setText(strings.PRACTICE_COMPLETED)
-        return_video = self._review_return_video
-        return_mode = self._review_return_mode
-        self._review_in_progress = False
-        self._review_return_video = None
-        self._review_return_mode = None
+        return_video, return_mode = self._review_session.stop()
         if return_video is not None and return_video.is_file():
             self._current_video = None
             self.open_video(return_video)
@@ -1168,100 +1163,36 @@ class MainWindow(QMainWindow):
         progress: VideoProgress | None,
         chinese_source: SubtitleSource | None = None,
     ) -> None:
-        resolved_video = video_path.resolve()
-        if (
-            self._teardown_complete
-            or self._close_pending
-            or self._current_video != resolved_video
-        ):
-            return
-        if self._transcription_jobs:
-            for running_job in self._transcription_jobs:
-                running_job.token.cancel()
-            self._queued_transcription = (
-                resolved_video,
-                progress,
-                chinese_source,
-            )
-            self.transcription_status.start()
-            self.transcription_status.label.setText(
-                "正在等待上一个转写安全结束…"
-            )
-            self.status_label.setText("已排队后台转写")
-            return
-        token = CancellationToken()
-        thread = QThread(self)
-        worker = TranscriptionWorker(
-            video_path,
-            self._transcription_service,
-            token,
-        )
-        job = _TranscriptionJob(
-            video_path=resolved_video,
-            thread=thread,
-            worker=worker,
-            token=token,
-            progress=progress,
-            chinese_source=chinese_source,
-        )
-        self._transcription_job = job
-        self._transcription_jobs.append(job)
-        worker.moveToThread(thread)
-        thread.started.connect(worker.run)
-        worker.phase_changed.connect(self._transcription_phase)
-        worker.progress_changed.connect(self._transcription_progress)
-        worker.completed.connect(self._transcription_completed)
-        worker.cancelled.connect(self._transcription_cancelled)
-        worker.failed.connect(self._transcription_failed)
-        worker.completed.connect(thread.quit)
-        worker.cancelled.connect(thread.quit)
-        worker.failed.connect(thread.quit)
-        thread.finished.connect(worker.deleteLater)
-        thread.finished.connect(self._transcription_thread_finished)
-        self.transcription_status.start()
-        self.status_label.setText(strings.TRANSCRIBING)
-        thread.start()
-
-    def _job_for_sender(self) -> _TranscriptionJob | None:
-        sender = self.sender()
-        return next(
-            (
-                job
-                for job in self._transcription_jobs
-                if job.worker is sender or job.thread is sender
-            ),
-            None,
-        )
-
-    def _transcription_phase(self, phase: str) -> None:
-        if self._job_for_sender() is not self._transcription_job:
-            return
-        self.transcription_status.set_phase(phase)
-
-    def _transcription_progress(self, value: int) -> None:
-        if self._job_for_sender() is not self._transcription_job:
-            return
-        self.transcription_status.set_progress(value)
+        self._transcriptions.start(video_path, progress, chinese_source)
+        if self._transcriptions.has_jobs() and self._transcriptions.queued is None:
+            self.status_label.setText(strings.TRANSCRIBING)
 
     def _request_transcription_cancel(self) -> None:
-        if self._transcription_job is not None:
-            self._transcription_job.token.cancel()
+        had_active = self._transcriptions.active_job is not None
+        self._transcriptions.cancel_active()
+        if had_active:
             self.transcription_status.set_cancelling()
             self.status_label.setText(strings.CANCELLING)
-        elif self._queued_transcription is not None:
-            self._queued_transcription = None
+
+    def _on_transcription_active_changed(self, active: bool) -> None:
+        if active:
+            self.transcription_status.start()
+        else:
+            self.transcription_status.reset()
+
+    def _on_transcription_queue_message(self, code: str) -> None:
+        if code == "queued":
+            self.transcription_status.start()
+            self.transcription_status.label.setText("正在等待上一个转写安全结束…")
+            self.status_label.setText("已排队后台转写")
+        elif code == "queue_cleared":
             self.transcription_status.reset()
             self.status_label.setText(strings.TRANSCRIPTION_CANCELLED)
+        elif code == "closed":
+            QTimer.singleShot(0, self.close)
 
-    def _transcription_completed(self, cache_path: str) -> None:
-        job = self._job_for_sender()
-        if job is None:
-            return
-        if (
-            job is not self._transcription_job
-            or self._close_pending
-            or self._current_video != job.video_path
-        ):
+    def _on_transcription_job_completed(self, job: TranscriptionJob, cache_path: str) -> None:
+        if self._close_pending or self._current_video != job.video_path:
             return
         position_ms = self.backend.position_ms
         playing = not self.backend.is_paused
@@ -1278,69 +1209,21 @@ class MainWindow(QMainWindow):
         self._populate_subtitle_combo(combined_sources, source)
         self._load_subtitle_source(source, job.chinese_source)
         self.controller.sync_background_load(position_ms, playing=playing)
-        self._finish_transcription_job(job)
         if job.progress is not None:
             self._finish_open(job.progress)
 
-    def _transcription_cancelled(self) -> None:
-        job = self._job_for_sender()
-        if job is None or job is not self._transcription_job:
-            return
+    def _on_transcription_job_cancelled(self, job: TranscriptionJob) -> None:
         if not self._close_pending:
             self.status_label.setText(strings.TRANSCRIPTION_CANCELLED)
-        self._finish_transcription_job(job)
         if job.progress is not None and not self._close_pending:
             self._finish_open(job.progress)
 
-    def _transcription_failed(self, message: str) -> None:
-        job = self._job_for_sender()
-        if job is None or job is not self._transcription_job:
-            return
+    def _on_transcription_job_failed(self, job: TranscriptionJob, message: str) -> None:
         if not self._close_pending:
             self.status_label.setText(strings.ERROR.format(message=message))
             QMessageBox.warning(self, strings.TRANSCRIBE_QUESTION_TITLE, message)
-        self._finish_transcription_job(job)
         if job.progress is not None and not self._close_pending:
             self._finish_open(job.progress)
-
-    def _finish_transcription_job(self, job: _TranscriptionJob) -> None:
-        job.thread.quit()
-        if job is self._transcription_job:
-            self._transcription_job = None
-            self.transcription_status.reset()
-
-    def _transcription_thread_finished(self) -> None:
-        job = self._job_for_sender()
-        if job is not None:
-            self._transcription_jobs.remove(job)
-            if job is self._transcription_job:
-                self._transcription_job = None
-                self.transcription_status.reset()
-        if self._close_pending and not self._transcription_jobs:
-            QTimer.singleShot(0, self.close)
-            return
-        if not self._transcription_jobs and self._queued_transcription is not None:
-            video_path, progress, chinese_source = self._queued_transcription
-            self._queued_transcription = None
-            if self._current_video == video_path:
-                QTimer.singleShot(
-                    0,
-                    lambda: self._start_transcription(
-                        video_path, progress, chinese_source
-                    ),
-                )
-
-    def _cancel_transcription(self) -> None:
-        if self._transcription_job is not None:
-            self._transcription_job.token.cancel()
-
-    def _abandon_transcription(self) -> None:
-        self._queued_transcription = None
-        if self._transcription_job is None:
-            return
-        self._transcription_job.token.cancel()
-        self._transcription_job = None
-        self.transcription_status.reset()
 
     def _toggle_if_available(self) -> None:
         if self.play_button.isEnabled():
@@ -1454,7 +1337,7 @@ class MainWindow(QMainWindow):
 
     def _save_current_progress(self) -> None:
         if (
-            self._review_in_progress
+            self._review_session.active
             or self._current_video is None
             or not self._current_video.is_file()
         ):
@@ -1473,7 +1356,7 @@ class MainWindow(QMainWindow):
     def _current_settings(self) -> AppSettings:
         return AppSettings(
             speed=float(self.speed_combo.currentData()),
-            mode=self._review_return_mode or self.current_mode,
+            mode=self._review_session.return_mode or self.current_mode,
             blank_multiplier=float(self.blank_combo.currentData()),
             plays_per_sentence=int(self.plays_combo.currentData()),
             auto_advance=self.auto_advance_check.isChecked(),
@@ -1536,10 +1419,10 @@ class MainWindow(QMainWindow):
         if self._teardown_complete:
             super().closeEvent(event)
             return
-        if self._transcription_jobs:
+        if self._transcriptions.has_jobs():
             self._close_pending = True
-            self._queued_transcription = None
-            for job in self._transcription_jobs:
+            self._transcriptions.queued = None
+            for job in list(self._transcriptions.jobs):
                 job.token.cancel()
             for shortcut in self._shortcuts:
                 shortcut.setEnabled(False)
@@ -1550,6 +1433,7 @@ class MainWindow(QMainWindow):
             event.ignore()
             return
         self._teardown_complete = True
+        self._discover.cancel_pending()
         self._save_current_progress()
         save_settings(self._settings_path, self._current_settings())
         self.controller.timer.cancel()

@@ -406,7 +406,7 @@ def test_review_mode_and_favorite_buttons_follow_the_review_sentence(
     review_sentence = Sentence(
         8, 3_000, 4_000, "Review", starred=True, id=20
     )
-    window._review_in_progress = True
+    window._review_session.active = True
     window.review_controller._current_video = movie.resolve()
 
     window.review_controller.start([ReviewItem(movie, review_sentence)])
@@ -583,11 +583,14 @@ def test_tools_menu_actions_use_current_paths_and_shortcuts(
         lambda _dialog: QDialog.DialogCode.Rejected,
     )
 
-    assert [action.text() for action in window.tools_menu.actions()] == [
-        strings.CREATE_DESKTOP_SHORTCUT,
-        strings.OPEN_DATA_FOLDER,
-        strings.SHORTCUT_HELP,
-    ]
+    texts = [action.text() for action in window.tools_menu.actions()]
+    assert texts[0] == strings.CREATE_DESKTOP_SHORTCUT
+    assert texts[1] == strings.OPEN_DATA_FOLDER
+    assert texts[2] == strings.SHORTCUT_HELP
+    assert strings.SETUP_CHECKLIST in texts
+    assert strings.EXPORT_STARRED in texts
+    assert strings.ASR_LANGUAGE in texts
+    assert strings.ABOUT in texts
     window.create_shortcut_action.trigger()
     window.open_data_action.trigger()
     window.shortcut_help_action.trigger()
@@ -852,7 +855,7 @@ def test_window_opens_selected_mkv_and_controls_backend(qtbot, monkeypatch, tmp_
 
     window.open_button.click()
     window.play_button.click()
-    window.speed_combo.setCurrentIndex(1)
+    window.speed_combo.setCurrentIndex(window.speed_combo.findData(0.95))
 
     assert backend.opened == [str(movie)]
     assert backend.pause_count >= 1
@@ -1122,7 +1125,8 @@ def test_startup_with_no_valid_video_stays_on_empty_screen(
 
     assert window.backend.opened == []
     assert window._current_video is None
-    assert window.file_label.text() == strings.READY
+    assert window.file_label.text() == strings.EMPTY_GUIDE.split("\n")[0]
+    assert window.status_label.text() == strings.READY
 
 
 def test_startup_restore_can_be_disabled_for_smoke_test(
@@ -1532,7 +1536,7 @@ def test_transcription_status_is_embedded_non_blocking_and_can_cancel(
     assert window.backend.pause_count == 0
     assert not window.transcription_status.isHidden()
     assert window.centralWidget().isAncestorOf(window.transcription_status)
-    window.speed_combo.setCurrentIndex(1)
+    window.speed_combo.setCurrentIndex(window.speed_combo.findData(0.95))
     assert window.speed_combo.currentData() == 0.95
     qtbot.mouseClick(
         window.transcription_status.cancel_button, Qt.MouseButton.LeftButton
@@ -1580,7 +1584,7 @@ def test_late_transcription_from_previous_video_cannot_replace_new_sentences(
     assert transcription.started.wait(1)
     window.open_video(second)
     transcription.release.set()
-    qtbot.waitUntil(lambda: not window._transcription_jobs, timeout=3_000)
+    qtbot.waitUntil(lambda: not window._transcriptions.has_jobs(), timeout=3_000)
 
     assert window._current_video == second.resolve()
     assert window.sentence_model.sentences[0].text == "Current video sentence"
@@ -1641,7 +1645,7 @@ def test_stale_queued_transcription_cannot_start_after_video_changes(
     window._start_transcription(old_video, None)
     qtbot.wait(20)
 
-    assert window._transcription_jobs == []
+    assert window._transcriptions.jobs == []
     assert service.calls == []
 
 

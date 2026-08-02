@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.1] — 2026-08-02
+
+### Architecture (Kimi K3 iteration A)
+
+- Split open-video planning into `playback/video_open_plan.py`
+- Background subtitle discovery via `SubtitleDiscoverController` (tests force sync with `SHADOWING_SYNC_SUBTITLE_LOAD=1`)
+- Extract `TranscriptionJobManager` and `ReviewSession` from `MainWindow`
+- Faster bilingual aligner sliding window retained from 0.3.0
+
 ## [0.3.0] — 2026-08-02
 
 ### Added
