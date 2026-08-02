@@ -56,6 +56,11 @@ from shadowing_player.ui.sentence_progress_bar import SentenceProgressBar
 from shadowing_player.ui.shortcut_dialog import ShortcutDialog
 from shadowing_player.ui.split_sentence_dialog import SplitSentenceDialog
 from shadowing_player.ui.review_dialog import ReviewDialog
+from shadowing_player.runtime.setup_checks import (
+    has_optional_gaps,
+    run_setup_checks,
+)
+from shadowing_player.ui.setup_checklist_dialog import SetupChecklistDialog
 from shadowing_player.ui.theme import apply_dark_theme
 from shadowing_player.ui.transcription_status_bar import TranscriptionStatusBar
 
@@ -104,6 +109,7 @@ class MainWindow(QMainWindow):
         restore_last_session: bool = True,
         startup_warning: str | None = None,
         log_path: Path | None = None,
+        prompt_setup_checklist: bool = False,
     ) -> None:
         super().__init__()
         self.setWindowTitle(strings.WINDOW_TITLE)
@@ -190,6 +196,7 @@ class MainWindow(QMainWindow):
         )
         self.open_data_action = self.tools_menu.addAction(strings.OPEN_DATA_FOLDER)
         self.shortcut_help_action = self.tools_menu.addAction(strings.SHORTCUT_HELP)
+        self.setup_checklist_action = self.tools_menu.addAction(strings.SETUP_CHECKLIST)
         self.about_action = self.tools_menu.addAction(strings.ABOUT)
         self.tools_button.setMenu(self.tools_menu)
         top.addWidget(self.open_button)
@@ -392,6 +399,8 @@ class MainWindow(QMainWindow):
             )
         if restore_last_session:
             QTimer.singleShot(0, self._restore_last_session)
+        if prompt_setup_checklist:
+            QTimer.singleShot(0, self._maybe_show_setup_checklist)
 
     @property
     def current_mode(self) -> PlaybackMode:
@@ -423,6 +432,7 @@ class MainWindow(QMainWindow):
         self.create_shortcut_action.triggered.connect(self._create_desktop_shortcut)
         self.open_data_action.triggered.connect(self._open_data_folder)
         self.shortcut_help_action.triggered.connect(self._show_shortcut_help)
+        self.setup_checklist_action.triggered.connect(self._show_setup_checklist)
         self.about_action.triggered.connect(self._show_about)
         self.sentence_progress.sentence_clicked.connect(lambda index: self.controller.select_sentence(index, True))
         self.backend.pause_changed.connect(self._set_pause_label)
@@ -685,6 +695,32 @@ class MainWindow(QMainWindow):
             log_path=self._log_path,
         )
         QMessageBox.about(self, strings.ABOUT_TITLE, body)
+
+    def _setup_checks(self):
+        return run_setup_checks(data_dir=self._settings_path.parent)
+
+    def _show_setup_checklist(self) -> None:
+        dialog = SetupChecklistDialog(
+            self._setup_checks(),
+            allow_dismiss=True,
+            parent=self,
+        )
+        dialog.exec()
+        if dialog.dismiss_future_prompts():
+            self._settings.setup_checklist_dismissed = True
+            save_settings(self._settings_path, self._current_settings())
+
+    def _maybe_show_setup_checklist(self) -> None:
+        if self._close_pending or self._settings.setup_checklist_dismissed:
+            return
+        checks = self._setup_checks()
+        if not has_optional_gaps(checks):
+            return
+        dialog = SetupChecklistDialog(checks, allow_dismiss=True, parent=self)
+        dialog.exec()
+        if dialog.dismiss_future_prompts():
+            self._settings.setup_checklist_dismissed = True
+            save_settings(self._settings_path, self._current_settings())
 
     @staticmethod
     def _dropped_video_path(mime_data: QMimeData) -> Path | None:
@@ -1351,6 +1387,7 @@ class MainWindow(QMainWindow):
             auto_advance=self.auto_advance_check.isChecked(),
             subtitle_visible=self.subtitle_mode_combo.currentData() != "hidden",
             subtitle_mode=str(self.subtitle_mode_combo.currentData()),
+            setup_checklist_dismissed=self._settings.setup_checklist_dismissed,
             shortcuts=dict(self._settings.shortcuts),
         )
 

@@ -26,13 +26,26 @@ def test_malformed_settings_falls_back_with_chinese_warning(tmp_path: Path) -> N
 
 def test_settings_round_trip(tmp_path: Path) -> None:
     path = tmp_path / "settings.json"
-    expected = AppSettings(speed=0.75, mode=PlaybackMode.SHADOWING, subtitle_visible=False)
+    expected = AppSettings(
+        speed=0.75,
+        mode=PlaybackMode.SHADOWING,
+        subtitle_visible=False,
+        setup_checklist_dismissed=True,
+    )
 
     save_settings(path, expected)
     loaded, warning = load_settings(path)
 
     assert loaded == expected
     assert warning is None
+
+
+def test_setup_checklist_dismissed_defaults_false(tmp_path: Path) -> None:
+    path = tmp_path / "settings.json"
+    path.write_text('{"speed": 0.8}', encoding="utf-8")
+    settings, warning = load_settings(path)
+    assert warning is None
+    assert settings.setup_checklist_dismissed is False
 
 
 def test_old_subtitle_visible_false_migrates_to_hidden_mode(tmp_path: Path) -> None:

@@ -108,6 +108,8 @@ Runtime log:
 
 If embedded subtitles fail, confirm `ffprobe` is on `PATH`. External `.srt`/`.ass` still work without it; the status bar warns at startup when ffprobe is missing.
 
+**Tools → 环境检查** shows libmpv / ffmpeg / model status. On first runs with optional gaps, a checklist may open automatically (you can dismiss future prompts).
+
 ## Tests
 
 ```powershell
@@ -120,7 +122,14 @@ If embedded subtitles fail, confirm `ffprobe` is on `PATH`. External `.srt`/`.as
 
 ## Packaging notes
 
-Windows folder packaging scripts live under `packaging/`. Built artifacts in `build/` and `dist/` are not committed.
+Windows folder packaging scripts live under `packaging/`. See [packaging/README.md](packaging/README.md).
+
+```powershell
+# Slim portable zip for GitHub Releases (model downloads on first ASR)
+.\packaging\build_windows.ps1 -SkipModel -Zip
+```
+
+Built artifacts in `build/` and `dist/` are not committed.
 
 ## Contributing
 

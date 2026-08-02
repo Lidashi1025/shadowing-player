@@ -67,6 +67,18 @@ ABOUT_BODY = (
     "日志文件：\n{log_path}\n\n"
     "MIT License · 问题反馈请到 GitHub Issues"
 )
+SETUP_CHECKLIST = "环境检查"
+SETUP_CHECKLIST_TITLE = "环境检查"
+SETUP_CHECKLIST_INTRO = (
+    "以下项目影响安装与字幕能力。带「必需」的失败会阻止播放；"
+    "「可选」失败仍可先用外部字幕练习。"
+)
+SETUP_CHECKLIST_DISMISS = "可选项目未就绪时，下次启动不再自动弹出"
+SETUP_CHECKLIST_CLOSE = "关闭"
+SETUP_REQUIRED = "必需"
+SETUP_OPTIONAL = "可选"
+SETUP_BLOCKED_TITLE = "环境未就绪"
+SETUP_BLOCKED_BODY = "播放器无法启动，请先解决下列必需项：\n\n{details}"
 SHORTCUT_HELP_TITLE = "快捷键设置"
 SHORTCUTS_SAVED = "快捷键已保存"
 SHORTCUT_CREATED = "已创建桌面快捷方式：{path}"

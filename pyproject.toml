@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shadowing-player"
-version = "0.2.1"
+version = "0.2.2"
 description = "Local Windows player for sentence-level language shadowing with bilingual subtitles and offline ASR"
 readme = "README.md"
 license = { text = "MIT" }

@@ -7,16 +7,18 @@ Living plan for Shadowing Player. Order can change based on real user issues.
 - [x] Public MIT release, README, CONTRIBUTING
 - [x] Version flag, About dialog, file logs
 - [x] Unit-test CI on Windows
+- [x] First-run / on-demand **环境检查** checklist
+- [x] Packaging script supports slim zip (`-SkipModel -Zip`)
 - [ ] Keep responding to GitHub Issues within a few days
 - [ ] One small real-user polish pass every week (docs or bugfix)
+- [ ] Publish at least one portable zip on GitHub Releases
 
 ## Next (high user value)
 
-1. **First-run setup checklist** in UI when libmpv / ffmpeg / model missing
-2. **ASR language options** beyond fixed English (at least auto / en / zh if model supports)
-3. **Packaged portable zip** on GitHub Releases (folder build + model download guide)
-4. **WebM / more containers** if mpv handles them cleanly
-5. **Export starred sentences** to SRT / Anki-friendly CSV
+1. **ASR language options** beyond fixed English (at least auto / en / zh if model supports)
+2. **Export starred sentences** to SRT / Anki-friendly CSV
+3. **WebM / more containers** if mpv handles them cleanly
+4. Code-signed installer (optional, cost)
 
 ## Later
 

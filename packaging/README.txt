@@ -1,48 +1,56 @@
-儿童影子跟读播放器（Windows 文件夹版）
-========================================
+Shadowing Player / 儿童影子跟读播放器（Windows 文件夹版）
+========================================================
 
-启动方式
---------
-双击 ShadowingPlayer.exe。
+Start
+-----
+Double-click ShadowingPlayer.exe.
 
-如需桌面图标，请启动播放器后选择“工具”→“创建桌面快捷方式”。
-如果之后移动了整个程序文件夹，请重新执行一次该操作覆盖旧快捷方式。
+To create a desktop icon: Tools → Create desktop shortcut.
+If you move the whole folder later, run that action again.
 
-请保留整个 ShadowingPlayer 文件夹，不要只复制 EXE。播放器、libmpv、
-ffmpeg、ffprobe 和 faster-whisper small 模型都在这个文件夹内。
+Keep the entire ShadowingPlayer folder. The player, libmpv, ffmpeg,
+ffprobe, and (if included) the faster-whisper model all live here.
 
-使用提示
---------
-可把单个 MKV 或 MP4 文件直接拖入播放器窗口。字幕下方会显示当前时间、
-当前句数和影片总时长。“工具”菜单还可打开数据目录和查看实际快捷键。
-顶部“最近观看”可快速打开最近 8 部仍存在的影片。点击右侧句子文字会
-跳到该句开头，点击右侧星号可收藏。转写期间可继续播放，进度显示在
-主窗口底部；“工具”→“快捷键设置”可查看和修改全部快捷键。
-顶部“收藏夹”可收藏当前影片并快速重新打开，收藏影片会持续记录最新
-播放进度。再次启动播放器时，会恢复最后一部仍存在的影片与进度，并
-保持暂停，等待按播放。
-底部双层功能坞常驻显示全部快捷键功能：蓝色表示播放或已激活状态，
-金色表示当前句已收藏；鼠标悬停按钮可查看当前按键。
+Environment check
+-----------------
+Tools → 环境检查 shows libmpv / ffmpeg / model status.
+Tools → About shows version and log path.
 
-如果影片只有中文字幕，程序会使用文件夹内的 faster-whisper small
-自动生成英文，再与现有中文字幕组成双语字幕；第二次打开会直接读取快取。
+Usage tips
+----------
+Drag a single MKV or MP4 onto the window.
+Sentence list: click a row to jump; star to favorite.
+Review list practices starred sentences across videos.
+Favorites menu bookmarks whole videos with progress.
+Startup restores the last existing video and stays paused.
+Bottom dock exposes all shortcuts; hover a button to see the key.
 
-迁移到另一台 Windows x64 电脑
------------------------------
-直接复制整个 ShadowingPlayer 文件夹即可。目标电脑不需要安装 Python，
-也不需要另外下载语音模型。
+If the video only has Chinese subs, offline ASR can generate English
+and align bilingual text. Second open uses the cache.
 
-用户数据
---------
-设置和播放进度保存在：
+Model note (slim builds)
+------------------------
+If models\faster-whisper-small is empty, the model downloads on the
+first auto-transcription, or place model.bin + config.json there.
 
-%LOCALAPPDATA%\ShadowingPlayer
+Migrate to another Windows x64 PC
+---------------------------------
+Copy the whole folder. Python is not required on the target PC.
 
-自动转写字幕保存在程序目录的 cache\transcriptions，语音模型保存在
-models\faster-whisper-small。复制整个程序文件夹即可带走模型和转写
-结果；如果还要迁移播放进度，请在程序关闭后复制上述 LOCALAPPDATA 目录。
+User data
+---------
+Settings and progress:
 
-系统要求
---------
-Windows 11 x64。首次启动可能被 Windows SmartScreen 提示，因为本程序
-没有购买代码签名证书；可核对来源后选择“更多信息”→“仍要运行”。
+  %LOCALAPPDATA%\ShadowingPlayer
+
+Transcription cache: cache\transcriptions next to the exe.
+Model (folder package): models\faster-whisper-small
+
+Requirements
+------------
+Windows 11 x64. SmartScreen may warn because the build is not code-signed.
+Choose More info → Run anyway after verifying the source.
+
+Source / issues
+---------------
+https://github.com/Lidashi1025/shadowing-player

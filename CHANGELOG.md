@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.2] — 2026-08-02
+
+### Added
+
+- **Tools → 环境检查** first-run setup checklist (libmpv, data dir, ffprobe, whisper model)
+- Auto-prompt when optional components are missing (can dismiss permanently)
+- Blocking startup dialog when required environment checks fail
+- `packaging/build_windows.ps1 -SkipModel -Zip` for slim GitHub Release zips
+- `packaging/README.md` packaging guide
+
+### Improved
+
+- Folder-package README covers environment check and slim-model note
+
 ## [0.2.1] — 2026-08-02
 
 ### Added

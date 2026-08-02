@@ -20,10 +20,16 @@ from shadowing_player.runtime.diagnostics import (
     probe_ffprobe,
 )
 from shadowing_player.runtime.package_self_test import verify_frozen_bundle
+from shadowing_player.runtime.setup_checks import (
+    has_blocking_failures,
+    run_setup_checks,
+    summary_lines,
+)
 from shadowing_player.runtime.app_identity import (
     apply_application_identity,
     set_windows_app_user_model_id,
 )
+from shadowing_player.ui import strings
 
 
 def _smoke_test_requested(arguments: list[str]) -> bool:
@@ -53,6 +59,18 @@ def main() -> int:
     )
 
     try:
+        checks = run_setup_checks(data_dir=default_data_dir())
+        for line in summary_lines(checks):
+            logging.getLogger(__name__).info("环境：%s", line)
+        if has_blocking_failures(checks):
+            details = "\n".join(summary_lines(checks))
+            QMessageBox.critical(
+                None,
+                strings.SETUP_BLOCKED_TITLE,
+                strings.SETUP_BLOCKED_BODY.format(details=details),
+            )
+            return 1
+
         dll_path = configure_libmpv_path()
         logging.getLogger(__name__).info("libmpv：%s", dll_path)
         ffprobe_ok, ffprobe_message = probe_ffprobe()
@@ -69,6 +87,7 @@ def main() -> int:
             restore_last_session=not smoke_test,
             startup_warning=None if ffprobe_ok else ffprobe_message,
             log_path=log_path,
+            prompt_setup_checklist=not smoke_test,
         )
         window.setWindowIcon(application.windowIcon())
     except Exception as exc:

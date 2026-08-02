@@ -17,6 +17,7 @@ class AppSettings:
     auto_advance: bool = True
     subtitle_visible: bool = True
     subtitle_mode: str = "bilingual"
+    setup_checklist_dismissed: bool = False
     shortcuts: dict[str, str] = field(default_factory=default_shortcuts)
 
 
@@ -37,6 +38,9 @@ def load_settings(path: Path) -> tuple[AppSettings, str | None]:
             auto_advance=bool(payload.get("auto_advance", True)),
             subtitle_visible=subtitle_visible,
             subtitle_mode=subtitle_mode,
+            setup_checklist_dismissed=bool(
+                payload.get("setup_checklist_dismissed", False)
+            ),
             shortcuts={**default_shortcuts(), **dict(payload.get("shortcuts", {}))},
         )
         if not 0.5 <= settings.speed <= 1.0:
