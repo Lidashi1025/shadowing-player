@@ -2,41 +2,43 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.0] — 2026-08-02
+
+### Added
+
+- ASR language menu: auto / English / Chinese (`Tools → 转写语言`)
+- Export starred sentences to **SRT** or **Anki TSV** (`Tools → 导出收藏句子`)
+- More video containers: WebM, MOV, AVI, M4V
+- `SECURITY.md`, PR template, packaging `licenses/NOTICE.txt`
+- GitHub `release.yml` workflow scaffold; CI matrix Python 3.12 + 3.13
+
+### Fixed / improved (Kimi K3 review P0–P1)
+
+- Frozen transcription cache writes to `%LOCALAPPDATA%\ShadowingPlayer\...` (Program Files safe)
+- Opening a video during review correctly stops review mode
+- Wait cursor + status while parsing subtitles
+- Speed range extended to **0.50×–1.50×**
+- Rotating log file (2 MB × 3)
+- Empty failed-exception messages no longer blank
+- Bilingual aligner uses a sliding time window (faster on long cue lists)
+- Packaging: copy LICENSE + licenses/, disable UPX, exclude dev packages, run `--smoke-test`
+- libmpv README documents GPL/LGPL redistribution risk
+
 ## [0.2.2] — 2026-08-02
 
 ### Added
 
-- **Tools → 环境检查** first-run setup checklist (libmpv, data dir, ffprobe, whisper model)
-- Auto-prompt when optional components are missing (can dismiss permanently)
-- Blocking startup dialog when required environment checks fail
-- `packaging/build_windows.ps1 -SkipModel -Zip` for slim GitHub Release zips
-- `packaging/README.md` packaging guide
-
-### Improved
-
-- Folder-package README covers environment check and slim-model note
+- **Tools → 环境检查** first-run setup checklist
+- Slim packaging `-SkipModel -Zip`
 
 ## [0.2.1] — 2026-08-02
 
 ### Added
 
-- `--version` / `-V` CLI flag
-- File logging to `%LOCALAPPDATA%\ShadowingPlayer\shadowing-player.log`
-- Startup ffprobe probe with status-bar warning when missing
-- **Tools → About** dialog (version, repo link, log path)
-- GitHub Actions CI for unit tests on Windows
-- Issue templates for bugs and feature requests
-- `ROADMAP.md` for public maintenance priorities
-
-### Improved
-
-- Clearer bilingual error when `libmpv-2.dll` is missing
-- Image-subtitle error copy no longer says “first version only”
+- `--version`, About dialog, file logging, ffprobe probe, CI unit tests
 
 ## [0.2.0] — 2026-07-25
 
 ### Added
 
-- Video favorites and startup resume of the last existing video
-- Click video to play/pause; double-click for fullscreen
-- MIT license and public open-source documentation
+- Video favorites, startup resume, click/double-click video, MIT public release

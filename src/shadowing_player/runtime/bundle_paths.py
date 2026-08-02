@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -18,8 +19,20 @@ def executable_dir() -> Path:
     return project_root()
 
 
+def user_data_dir() -> Path:
+    base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    return base / "ShadowingPlayer"
+
+
 def transcription_cache_dir() -> Path:
-    return executable_dir() / "cache" / "transcriptions"
+    """Writable cache for ASR SRT files.
+
+    Frozen builds always use %LOCALAPPDATA% so installs under Program Files work.
+    Source installs keep cache next to the project for easy cleanup.
+    """
+    if is_frozen():
+        return user_data_dir() / "cache" / "transcriptions"
+    return project_root() / "cache" / "transcriptions"
 
 
 def bundle_internal_dir() -> Path:

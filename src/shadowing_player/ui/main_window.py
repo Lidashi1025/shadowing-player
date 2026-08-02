@@ -30,6 +30,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from shadowing_player.export.starred_export import (
+    export_starred_anki_csv,
+    export_starred_srt,
+)
+from shadowing_player.media_types import is_supported_video
 from shadowing_player.playback.mpv_backend import MpvBackend
 from shadowing_player.playback.session_controller import PlaybackMode, SessionController, SessionPhase
 from shadowing_player.runtime.bundle_paths import bundled_model_dir, transcription_cache_dir
@@ -134,6 +139,7 @@ class MainWindow(QMainWindow):
             transcription_cache_dir(),
             ModelManager(model_dir),
             fallback_cache_dirs=(data_dir / "cache",),
+            language=self._settings.asr_language,
         )
         self._current_video: Path | None = None
         self._last_position_ms = 0
@@ -171,7 +177,7 @@ class MainWindow(QMainWindow):
         self.favorites_button.setObjectName("favoritesButton")
         self.favorites_menu = QMenu(self.favorites_button)
         self.favorites_button.setMenu(self.favorites_menu)
-        self.file_label = QLabel(strings.READY, top_bar)
+        self.file_label = QLabel(strings.EMPTY_GUIDE.split("\n")[0], top_bar)
         self.file_label.setObjectName("fileLabel")
         self.file_label.setMinimumWidth(160)
         self.file_label.setSizePolicy(
@@ -197,6 +203,20 @@ class MainWindow(QMainWindow):
         self.open_data_action = self.tools_menu.addAction(strings.OPEN_DATA_FOLDER)
         self.shortcut_help_action = self.tools_menu.addAction(strings.SHORTCUT_HELP)
         self.setup_checklist_action = self.tools_menu.addAction(strings.SETUP_CHECKLIST)
+        self.export_menu = self.tools_menu.addMenu(strings.EXPORT_STARRED)
+        self.export_srt_action = self.export_menu.addAction(strings.EXPORT_SRT)
+        self.export_anki_action = self.export_menu.addAction(strings.EXPORT_ANKI)
+        self.asr_language_menu = self.tools_menu.addMenu(strings.ASR_LANGUAGE)
+        self._asr_language_actions: dict[str, object] = {}
+        for code, label in (
+            ("auto", strings.ASR_LANG_AUTO),
+            ("en", strings.ASR_LANG_EN),
+            ("zh", strings.ASR_LANG_ZH),
+        ):
+            action = self.asr_language_menu.addAction(label)
+            action.setCheckable(True)
+            action.setData(code)
+            self._asr_language_actions[code] = action
         self.about_action = self.tools_menu.addAction(strings.ABOUT)
         self.tools_button.setMenu(self.tools_menu)
         top.addWidget(self.open_button)
@@ -433,6 +453,11 @@ class MainWindow(QMainWindow):
         self.open_data_action.triggered.connect(self._open_data_folder)
         self.shortcut_help_action.triggered.connect(self._show_shortcut_help)
         self.setup_checklist_action.triggered.connect(self._show_setup_checklist)
+        self.export_srt_action.triggered.connect(self._export_starred_srt)
+        self.export_anki_action.triggered.connect(self._export_starred_anki)
+        for action in self._asr_language_actions.values():
+            action.triggered.connect(self._asr_language_chosen)
+        self._sync_asr_language_menu()
         self.about_action.triggered.connect(self._show_about)
         self.sentence_progress.sentence_clicked.connect(lambda index: self.controller.select_sentence(index, True))
         self.backend.pause_changed.connect(self._set_pause_label)
@@ -532,10 +557,7 @@ class MainWindow(QMainWindow):
             candidates = self._progress_store.list_resume_candidates(limit=100)
             for item in candidates:
                 path = item.path
-                if (
-                    not path.is_file()
-                    or path.suffix.lower() not in {".mkv", ".mp4"}
-                ):
+                if not is_supported_video(path):
                     continue
                 # A changed file has no valid saved progress. Skipping it keeps
                 # startup silent because open_video() plays brand-new files.
@@ -561,8 +583,7 @@ class MainWindow(QMainWindow):
         available = [
             item
             for item in self._progress_store.list_recent(limit=8)
-            if item.path.is_file()
-            and item.path.suffix.lower() in {".mkv", ".mp4"}
+            if is_supported_video(item.path)
         ]
         if not available:
             action = self.recent_menu.addAction(strings.NO_RECENT_WATCHING)
@@ -585,11 +606,7 @@ class MainWindow(QMainWindow):
         self.favorites_menu.clear()
         current = self._current_video
         try:
-            if (
-                current is None
-                or not current.is_file()
-                or current.suffix.lower() not in {".mkv", ".mp4"}
-            ):
+            if current is None or not is_supported_video(current):
                 toggle_action = self.favorites_menu.addAction(
                     strings.NO_VIDEO_TO_FAVORITE
                 )
@@ -610,7 +627,7 @@ class MainWindow(QMainWindow):
                 item
                 for item in self._progress_store.list_favorites(limit=100)
                 if item.path.is_file()
-                and item.path.suffix.lower() in {".mkv", ".mp4"}
+                and is_supported_video(item.path)
             ]
         except sqlite3.Error as exc:
             self.favorites_menu.clear()
@@ -638,7 +655,7 @@ class MainWindow(QMainWindow):
         if (
             video is None
             or not video.is_file()
-            or video.suffix.lower() not in {".mkv", ".mp4"}
+            or not is_supported_video(video)
         ):
             return
         try:
@@ -696,6 +713,70 @@ class MainWindow(QMainWindow):
         )
         QMessageBox.about(self, strings.ABOUT_TITLE, body)
 
+    def _sync_asr_language_menu(self) -> None:
+        current = getattr(self._transcription_service, "language", self._settings.asr_language)
+        for code, action in self._asr_language_actions.items():
+            action.setChecked(code == current)
+
+    def _asr_language_chosen(self) -> None:
+        action = self.sender()
+        if action is None:
+            return
+        code = str(action.data())
+        self._settings.asr_language = code
+        if hasattr(self._transcription_service, "language"):
+            self._transcription_service.language = code
+        self._sync_asr_language_menu()
+        save_settings(self._settings_path, self._current_settings())
+        labels = {
+            "auto": strings.ASR_LANG_AUTO,
+            "en": strings.ASR_LANG_EN,
+            "zh": strings.ASR_LANG_ZH,
+        }
+        self.status_label.setText(
+            strings.ASR_LANGUAGE_STATUS.format(label=labels.get(code, code))
+        )
+
+    def _export_starred_srt(self) -> None:
+        items = self._sentence_repository.list_starred()
+        if not items:
+            self.status_label.setText(strings.EXPORT_EMPTY)
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            strings.EXPORT_SRT,
+            "starred-sentences.srt",
+            "SubRip (*.srt)",
+        )
+        if not path:
+            return
+        try:
+            export_starred_srt(items, Path(path))
+        except OSError as exc:
+            self.status_label.setText(strings.EXPORT_FAILED.format(message=exc))
+            return
+        self.status_label.setText(strings.EXPORT_DONE.format(path=path))
+
+    def _export_starred_anki(self) -> None:
+        items = self._sentence_repository.list_starred()
+        if not items:
+            self.status_label.setText(strings.EXPORT_EMPTY)
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            strings.EXPORT_ANKI,
+            "starred-anki.txt",
+            "Tab-separated (*.txt *.csv)",
+        )
+        if not path:
+            return
+        try:
+            export_starred_anki_csv(items, Path(path))
+        except OSError as exc:
+            self.status_label.setText(strings.EXPORT_FAILED.format(message=exc))
+            return
+        self.status_label.setText(strings.EXPORT_DONE.format(path=path))
+
     def _setup_checks(self):
         return run_setup_checks(data_dir=self._settings_path.parent)
 
@@ -728,7 +809,7 @@ class MainWindow(QMainWindow):
         if len(urls) != 1 or not urls[0].isLocalFile():
             return None
         path = Path(urls[0].toLocalFile()).resolve()
-        if not path.is_file() or path.suffix.lower() not in {".mkv", ".mp4"}:
+        if not is_supported_video(path):
             return None
         return path
 
@@ -749,6 +830,11 @@ class MainWindow(QMainWindow):
     def open_video(self, video_path: Path) -> None:
         if self._close_pending:
             return
+        if self._review_in_progress:
+            self.review_controller.stop()
+            self._review_in_progress = False
+            self._review_return_video = None
+            self._review_return_mode = None
         self._abandon_transcription()
         self._save_current_progress()
         self._current_video = video_path.resolve()
@@ -758,6 +844,10 @@ class MainWindow(QMainWindow):
         self.play_button.setEnabled(True)
         self.backend.open_file(str(video_path))
         self.file_label.setText(video_path.name)
+        self.status_label.setText(strings.PARSING_SUBTITLES)
+        from PySide6.QtWidgets import QApplication as _QApplication
+
+        _QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             sources = self._subtitle_service.discover(video_path)
         except SubtitleError as exc:
@@ -768,6 +858,8 @@ class MainWindow(QMainWindow):
             self.controller.load_sentences([], self.backend.duration_ms)
             self._finish_open(progress)
             return
+        finally:
+            _QApplication.restoreOverrideCursor()
         self._subtitle_sources = sources
         if not sources:
             try:
@@ -1387,6 +1479,7 @@ class MainWindow(QMainWindow):
             auto_advance=self.auto_advance_check.isChecked(),
             subtitle_visible=self.subtitle_mode_combo.currentData() != "hidden",
             subtitle_mode=str(self.subtitle_mode_combo.currentData()),
+            asr_language=self._settings.asr_language,
             setup_checklist_dismissed=self._settings.setup_checklist_dismissed,
             shortcuts=dict(self._settings.shortcuts),
         )

@@ -83,9 +83,18 @@ if (-not $SkipModel) {
 }
 
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot "README.txt") -Destination $OutputRoot -Force
+Copy-Item -LiteralPath (Join-Path $ProjectRoot "LICENSE") -Destination $OutputRoot -Force
+
+$LicenseDir = Join-Path $OutputRoot "licenses"
+New-Item -ItemType Directory -Path $LicenseDir -Force | Out-Null
+$PackagingLicenses = Join-Path $PSScriptRoot "licenses"
+if (Test-Path -LiteralPath $PackagingLicenses) {
+    Copy-Item -Path (Join-Path $PackagingLicenses "*") -Destination $LicenseDir -Recurse -Force
+}
 
 $RequiredOutputs = @(
     $Executable,
+    (Join-Path $OutputRoot "LICENSE"),
     (Join-Path $OutputRoot "_internal\assets\app-icon.ico"),
     (Join-Path $OutputRoot "_internal\vendor\libmpv\libmpv-2.dll"),
     (Join-Path $OutputRoot "_internal\vendor\ffmpeg\ffmpeg.exe"),
@@ -98,6 +107,12 @@ foreach ($OutputFile in $RequiredOutputs) {
     if (-not (Test-Path -LiteralPath $OutputFile)) {
         throw "Incomplete packaging output: $OutputFile"
     }
+}
+
+Write-Host "Running frozen smoke test..."
+& $Executable --smoke-test
+if ($LASTEXITCODE -ne 0) {
+    throw "Smoke test failed with exit code: $LASTEXITCODE"
 }
 
 $Size = (Get-ChildItem -LiteralPath $OutputRoot -File -Recurse | Measure-Object Length -Sum).Sum

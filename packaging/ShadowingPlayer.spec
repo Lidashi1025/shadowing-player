@@ -44,7 +44,17 @@ analysis = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        "pytest",
+        "pytestqt",
+        "pytest_qt",
+        "PIL",
+        "pillow",
+        "setuptools",
+        "pkg_resources",
+        "yaml",
+        "tkinter",
+    ],
     noarchive=False,
     optimize=0,
 )
@@ -60,7 +70,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -68,6 +78,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=str(project_root / "assets" / "app-icon.ico"),
+    version=None,
 )
 
 collection = COLLECT(
@@ -75,7 +86,7 @@ collection = COLLECT(
     analysis.binaries,
     analysis.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name="ShadowingPlayer",
 )

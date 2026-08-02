@@ -17,6 +17,7 @@ class AppSettings:
     auto_advance: bool = True
     subtitle_visible: bool = True
     subtitle_mode: str = "bilingual"
+    asr_language: str = "en"
     setup_checklist_dismissed: bool = False
     shortcuts: dict[str, str] = field(default_factory=default_shortcuts)
 
@@ -38,12 +39,13 @@ def load_settings(path: Path) -> tuple[AppSettings, str | None]:
             auto_advance=bool(payload.get("auto_advance", True)),
             subtitle_visible=subtitle_visible,
             subtitle_mode=subtitle_mode,
+            asr_language=str(payload.get("asr_language", "en")),
             setup_checklist_dismissed=bool(
                 payload.get("setup_checklist_dismissed", False)
             ),
             shortcuts={**default_shortcuts(), **dict(payload.get("shortcuts", {}))},
         )
-        if not 0.5 <= settings.speed <= 1.0:
+        if not 0.5 <= settings.speed <= 1.5:
             raise ValueError("speed")
         if not 1.2 <= settings.blank_multiplier <= 2.5:
             raise ValueError("blank_multiplier")
@@ -51,6 +53,8 @@ def load_settings(path: Path) -> tuple[AppSettings, str | None]:
             raise ValueError("plays_per_sentence")
         if settings.subtitle_mode not in {"english", "bilingual", "hidden"}:
             raise ValueError("subtitle_mode")
+        if settings.asr_language not in {"auto", "en", "zh"}:
+            raise ValueError("asr_language")
         return settings, None
     except (OSError, TypeError, ValueError, json.JSONDecodeError):
         return AppSettings(), "设置文件格式错误，已恢复默认设置"

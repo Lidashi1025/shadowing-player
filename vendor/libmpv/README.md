@@ -27,3 +27,14 @@
 4. DLL 与 Python 必须采用相同架构；本项目使用 x64。
 
 `libmpv-2.dll` 已由 `.gitignore` 排除。程序启动时只会把此目录加入当前进程的 DLL 搜索路径，然后再导入 `python-mpv`。
+
+## 许可 / License (重要)
+
+Shinchiro 的 Windows 构建**可能包含 GPL 组件**，具体取决于发布变体与 configure flags。  
+本仓库主体为 **MIT**。若你要**公开发布文件夹版**，请自行核实所用 `libmpv-2.dll` 的许可构成：
+
+1. 优先使用上游标注为 **LGPL** 或可确认无 GPL 传染的构建。
+2. 将对应的 COPYING / LICENSE 文本放入 `packaging/licenses/`，打包脚本会复制到 dist。
+3. 在 `packaging/licenses/NOTICE.txt` 中说明实际捆绑版本。
+
+未核实前，请勿假设「放进 MIT 仓库 = 可随意再分发 libmpv/ffmpeg 二进制」。

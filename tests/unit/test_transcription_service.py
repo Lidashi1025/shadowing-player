@@ -37,7 +37,7 @@ class FakeManager:
         return self.model_dir
 
 
-def test_transcription_service_uses_fixed_english_cpu_configuration(tmp_path: Path) -> None:
+def test_transcription_service_uses_cpu_and_selected_language(tmp_path: Path) -> None:
     movie = tmp_path / "episode.mp4"
     movie.write_bytes(b"video")
     model = FakeModel()
@@ -54,6 +54,7 @@ def test_transcription_service_uses_fixed_english_cpu_configuration(tmp_path: Pa
         tmp_path / "cache",
         manager,
         model_factory=factory,
+        language="zh",
     )
 
     result = service.transcribe(
@@ -67,12 +68,28 @@ def test_transcription_service_uses_fixed_english_cpu_configuration(tmp_path: Pa
         (str(tmp_path / "model"), {"device": "cpu", "compute_type": "int8"})
     ]
     assert model.calls[0][1] == {
-        "language": "en",
+        "language": "zh",
         "word_timestamps": True,
         "vad_filter": True,
     }
     assert progress[-1] == 100
     assert "transcribing" in phases
+
+
+def test_transcription_service_auto_language_omits_language_kwarg(tmp_path: Path) -> None:
+    movie = tmp_path / "episode.mp4"
+    movie.write_bytes(b"video")
+    model = FakeModel()
+    manager = FakeManager(tmp_path / "model")
+
+    service = TranscriptionService(
+        tmp_path / "cache",
+        manager,
+        model_factory=lambda path, **kwargs: model,
+        language="auto",
+    )
+    service.transcribe(movie)
+    assert "language" not in model.calls[0][1]
 
 
 def test_transcription_service_reuses_cache_without_loading_model(tmp_path: Path) -> None:

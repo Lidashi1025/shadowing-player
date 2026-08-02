@@ -52,6 +52,6 @@ class TranscriptionWorker(QObject):
         except TranscriptionCancelled:
             self.cancelled.emit()
         except Exception as exc:
-            self.failed.emit(str(exc))
+            self.failed.emit(str(exc) or repr(exc))
         else:
             self.completed.emit(str(output))

@@ -1,0 +1,34 @@
+Shadowing Player — Third-Party Notices
+======================================
+
+This application is released under the MIT License (see LICENSE in the
+package root). It bundles or depends on third-party software that remains
+under its own licenses.
+
+Important for redistributors
+----------------------------
+- libmpv / mpv Windows builds (e.g. Shinchiro mpv-winbuild) may include GPL
+  components depending on the build variant. Prefer LGPL-safe builds when
+  redistributing under MIT-only terms, and ship the matching license texts.
+- ffmpeg/ffprobe full builds are often GPL. Confirm your binary's configure
+  flags (e.g. --enable-gpl) before public redistribution.
+- PySide6 / Qt are under LGPL (and commercial options). Ship Qt/PySide
+  license notices with binary distributions.
+- faster-whisper, ctranslate2, onnxruntime, tokenizers, av, pysubs2, and
+  related pure-Python/binary wheels retain their upstream licenses.
+
+Components typically present in the Windows folder package
+----------------------------------------------------------
+- libmpv (mpv project)
+- ffmpeg / ffprobe
+- PySide6 / Qt / shiboken6
+- faster-whisper + ctranslate2 + onnxruntime (ASR stack)
+- av (PyAV), tokenizers, huggingface_hub
+- pysubs2, python-mpv
+
+Place full license files for each redistributed binary next to this NOTICE
+when you ship a public build. Source installs pull packages via pip and do
+not copy their licenses into this folder automatically.
+
+本应用主体为 MIT。分发文件夹版时请附带第三方许可文本，并自行核实
+捆绑的 libmpv / ffmpeg 构建是否含 GPL 组件。

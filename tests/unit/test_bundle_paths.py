@@ -52,13 +52,15 @@ def test_bundled_binary_dir_requires_ffmpeg_and_ffprobe(
     assert bundled_binary_dir() == binary_dir
 
 
-def test_transcription_cache_is_portable_when_frozen(
+def test_transcription_cache_uses_localappdata_when_frozen(
     monkeypatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(tmp_path / "ShadowingPlayer.exe"))
+    data = tmp_path / "LocalAppData"
+    monkeypatch.setenv("LOCALAPPDATA", str(data))
 
-    assert transcription_cache_dir() == tmp_path / "cache" / "transcriptions"
+    assert transcription_cache_dir() == data / "ShadowingPlayer" / "cache" / "transcriptions"
 
 
 def test_transcription_cache_uses_project_folder_during_development(

@@ -18,7 +18,9 @@ Tools → About shows version and log path.
 
 Usage tips
 ----------
-Drag a single MKV or MP4 onto the window.
+Drag a single MKV/MP4/WebM/MOV onto the window.
+Tools → 转写语言 switches offline ASR language.
+Tools → 导出收藏句子 writes SRT or Anki TSV.
 Sentence list: click a row to jump; star to favorite.
 Review list practices starred sentences across videos.
 Favorites menu bookmarks whole videos with progress.
@@ -43,8 +45,9 @@ Settings and progress:
 
   %LOCALAPPDATA%\ShadowingPlayer
 
-Transcription cache: cache\transcriptions next to the exe.
-Model (folder package): models\faster-whisper-small
+Transcription cache: %LOCALAPPDATA%\ShadowingPlayer\cache\transcriptions
+Model (folder package): models\faster-whisper-small (or download on first ASR)
+Third-party notices: licenses\NOTICE.txt
 
 Requirements
 ------------

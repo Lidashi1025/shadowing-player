@@ -1,38 +1,36 @@
 # Roadmap
 
-Living plan for Shadowing Player. Order can change based on real user issues.
-
 ## Now (maintenance)
 
 - [x] Public MIT release, README, CONTRIBUTING
-- [x] Version flag, About dialog, file logs
-- [x] Unit-test CI on Windows
-- [x] First-run / on-demand **环境检查** checklist
-- [x] Packaging script supports slim zip (`-SkipModel -Zip`)
-- [ ] Keep responding to GitHub Issues within a few days
-- [ ] One small real-user polish pass every week (docs or bugfix)
-- [ ] Publish at least one portable zip on GitHub Releases
+- [x] Version / About / logs / setup checklist
+- [x] Unit-test CI (+ Python matrix)
+- [x] Slim portable packaging + license NOTICE
+- [x] Frozen cache under LocalAppData
+- [x] ASR language options (auto/en/zh)
+- [x] Export starred → SRT / Anki
+- [x] Extra containers (webm/mov/avi/m4v)
+- [ ] Respond to GitHub Issues promptly
+- [ ] Confirm redistributed libmpv/ffmpeg LGPL/GPL status per build
+- [ ] Code-signed release (optional cost)
 
-## Next (high user value)
+## Next
 
-1. **ASR language options** beyond fixed English (at least auto / en / zh if model supports)
-2. **Export starred sentences** to SRT / Anki-friendly CSV
-3. **WebM / more containers** if mpv handles them cleanly
-4. Code-signed installer (optional, cost)
+1. Split `MainWindow` into loader / transcription / review coordinators
+2. Move ffprobe/ffmpeg off the UI thread (background load pipeline)
+3. Recording / self-compare for shadowing feedback
+4. Light practice stats (`practiced_count`)
+5. GPU/CUDA optional for ASR
 
 ## Later
 
-- Optional recording / self-compare (out of scope for v2 core)
-- Child lock / learning stats
-- Non-Windows ports (not planned until Windows is rock-solid)
+- Child mode (if product returns to kid-focused UX)
+- Installer + Azure Trusted Signing
+- Non-Windows ports
 
-## How we prioritize
+## Priorities
 
-1. Crash / data loss / wrong sentence timing  
-2. Install friction on a clean Windows PC  
-3. Practice workflow speed  
+1. Crash / data loss / compliance  
+2. Install friction  
+3. Practice workflow  
 4. Nice-to-have UI  
-
-## How to help
-
-Open an issue with the templates under `.github/ISSUE_TEMPLATE/`, or a focused PR with tests.

@@ -8,9 +8,36 @@ on:
 
 jobs:
   unit-tests:
-    name: Unit tests (Windows)
+    name: Unit tests (Windows / Python ${{ matrix.python-version }})
     runs-on: windows-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package (dev)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run unit tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest tests/unit -q --tb=short
+
+  integration-smoke:
+    name: Integration subset (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -25,5 +52,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
-      - name: Run unit tests
-        run: python -m pytest tests/unit -q --tb=short
+      - name: Run selected integration tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: >
+          python -m pytest tests/integration/test_main_window.py
+          -k "open_video or drag or favorite or export or asr or resume"
+          -q --tb=line

@@ -29,6 +29,9 @@ def _default_model_factory(path: str, **kwargs: Any):
     return WhisperModel(path, **kwargs)
 
 
+SUPPORTED_ASR_LANGUAGES = frozenset({"auto", "en", "zh"})
+
+
 class TranscriptionService:
     def __init__(
         self,
@@ -36,11 +39,13 @@ class TranscriptionService:
         model_manager: ModelManager,
         model_factory: Callable[..., Any] | None = None,
         fallback_cache_dirs: tuple[Path, ...] = (),
+        language: str = "en",
     ) -> None:
         self.cache_dir = cache_dir
         self.model_manager = model_manager
         self._model_factory = model_factory or _default_model_factory
         self.fallback_cache_dirs = tuple(fallback_cache_dirs)
+        self.language = language if language in SUPPORTED_ASR_LANGUAGES else "en"
 
     def cache_path_for(self, video_path: Path) -> Path:
         return self.cache_dir / f"{quick_video_hash(video_path)}.srt"
@@ -87,12 +92,13 @@ class TranscriptionService:
             raise TranscriptionCancelled()
 
         phase("transcribing")
-        segments, info = model.transcribe(
-            str(video_path),
-            language="en",
-            word_timestamps=True,
-            vad_filter=True,
-        )
+        transcribe_kwargs: dict[str, Any] = {
+            "word_timestamps": True,
+            "vad_filter": True,
+        }
+        if self.language != "auto":
+            transcribe_kwargs["language"] = self.language
+        segments, info = model.transcribe(str(video_path), **transcribe_kwargs)
         duration = max(0.001, float(getattr(info, "duration", 0.0) or 0.0))
         transcript: list[TranscriptSegment] = []
         for segment in segments:

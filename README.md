@@ -4,9 +4,9 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](#environment)
 [![Python](https://img.shields.io/badge/python-3.12%E2%80%933.14-3776AB)](#environment)
 
-Local Windows player for **sentence-level shadowing practice**. It treats subtitle cues as practice units, supports MKV/MP4, single-sentence loop, gap pauses, pitch-preserving speed control, bilingual subtitles, and offline English transcription via faster-whisper.
+Local Windows player for **sentence-level shadowing practice**. It treats subtitle cues as practice units, supports common video containers, single-sentence loop, gap pauses, pitch-preserving speed control, bilingual subtitles, offline ASR (auto/en/zh), and export of starred sentences.
 
-Windows 本机播放器：以字幕时间轴为句子边界，支持 MKV／MP4、逐句跟读、单句精听、变速不变调、双语字幕，以及 faster-whisper 离线英文转写。
+Windows 本机播放器：以字幕为句子单位，支持常见视频格式、逐句跟读、单句精听、变速不变调、双语字幕、离线转写（自动/英/中），以及收藏句导出。
 
 > Current focus: product v2 playback / practice loop. Recording, child lock, and learning analytics are intentionally out of scope for now.
 
@@ -37,9 +37,10 @@ Shadowing Player is a small, local tool for that workflow—useful for parents, 
 
 - Windows 11 x64
 - Python 3.12–3.14 x64 (validated on 3.14.3)
-- `vendor/libmpv/libmpv-2.dll` — see [vendor/libmpv/README.md](vendor/libmpv/README.md)
+- `vendor/libmpv/libmpv-2.dll` — see [vendor/libmpv/README.md](vendor/libmpv/README.md) (**check LGPL/GPL before redistributing**)
 - `ffmpeg.exe` and `ffprobe.exe` on `PATH` (embedded subtitle extraction)
 - First-time ASR downloads faster-whisper `small` over the network; transcription runs on local CPU
+- ASR language and starred export live under **Tools**
 
 ## Install & run
 

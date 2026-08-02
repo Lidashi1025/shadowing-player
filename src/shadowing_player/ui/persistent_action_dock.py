@@ -106,7 +106,8 @@ class PersistentActionDock(QFrame):
         self.speed_down_button = self._action_button("−", "speed_down", 42)
         self.speed_down_button.setObjectName("stepButton")
         self.speed_combo = QComboBox(settings_frame)
-        for step in range(20, 9, -1):
+        # 1.50× down to 0.50× in 0.05 steps (shadowing often needs above 1.0×)
+        for step in range(30, 9, -1):
             speed = step / 20
             self.speed_combo.addItem(f"速度 {speed:.2f}×", speed)
         self.speed_combo.setFixedWidth(150)

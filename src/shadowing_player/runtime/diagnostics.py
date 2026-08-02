@@ -19,7 +19,9 @@ def default_data_dir() -> Path:
 
 
 def configure_file_logging(data_dir: Path | None = None) -> Path:
-    """Attach a rotating-friendly single log file under the app data directory."""
+    """Attach a rotating log under the app data directory (2 MB × 3 backups)."""
+    from logging.handlers import RotatingFileHandler
+
     target_dir = data_dir or default_data_dir()
     target_dir.mkdir(parents=True, exist_ok=True)
     log_path = target_dir / "shadowing-player.log"
@@ -28,7 +30,12 @@ def configure_file_logging(data_dir: Path | None = None) -> Path:
     for handler in root.handlers:
         if getattr(handler, "baseFilename", None) == resolved:
             return log_path
-    handler = logging.FileHandler(log_path, encoding="utf-8")
+    handler = RotatingFileHandler(
+        log_path,
+        maxBytes=2_000_000,
+        backupCount=3,
+        encoding="utf-8",
+    )
     handler.setLevel(logging.INFO)
     handler.setFormatter(
         logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
